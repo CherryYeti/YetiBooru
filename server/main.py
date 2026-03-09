@@ -1,0 +1,674 @@
+import os
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from typing import Literal
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from pydantic import BaseModel
+from psycopg_pool import ConnectionPool
+import shutil
+import subprocess
+
+DB_CONNINFO = (
+    f"host={os.environ.get('DB_HOST', 'db')} "
+    f"port={os.environ.get('DB_PORT', '5432')} "
+    f"dbname={os.environ.get('DB_NAME', 'booru')} "
+    f"user={os.environ.get('DB_USER', 'booru')} "
+    f"password={os.environ.get('DB_PASSWORD', 'booru')}"
+)
+
+pool: ConnectionPool | None = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global pool
+    pool = ConnectionPool(DB_CONNINFO, min_size=2, max_size=10)
+    yield
+    pool.close()
+
+
+app = FastAPI(lifespan=lifespan)
+
+
+@dataclass
+class Category:
+    label: str
+    color: str
+
+
+@dataclass
+class Tag:
+    category: Category
+    count: int
+    label: str
+    id: int
+
+
+@dataclass
+class Post:
+    id: int
+    score: int
+    tags: list[Tag]
+    type: Literal["video", "image"]
+
+class CreateTagRequest(BaseModel):
+    label: str
+    category_id: int
+
+class UpdateImplicationsRequest(BaseModel):
+    implied_tag_labels: list[str]
+
+class UpdateTagRequest(BaseModel):
+    category_label: str
+
+class CreateCategoryRequest(BaseModel):
+    label: str
+    color: str
+
+class UpdateCategoryRequest(BaseModel):
+    label: str
+    color: str
+
+class UpdatePostTagsRequest(BaseModel):
+    tag_labels: list[str]
+
+def _get_conn():
+    return pool.connection()
+
+
+def _build_tags_for_post(conn, post_id: int) -> list[Tag]:
+    rows = conn.execute(
+        """
+        SELECT t.id, t.label, t.count, c.label AS cat_label, c.color AS cat_color
+        FROM post_tags pt
+        JOIN tags t ON t.id = pt.tag_id
+        JOIN categories c ON c.id = t.category_id
+        WHERE pt.post_id = %s
+        ORDER BY t.label
+        """,
+        (post_id,),
+    ).fetchall()
+    return [
+        Tag(id=r[0], label=r[1], count=r[2], category=Category(label=r[3], color=r[4]))
+        for r in rows
+    ]
+
+
+def _get_implications(conn, tag_id: int) -> list[Tag]:
+    rows = conn.execute(
+        """
+        SELECT t.id, t.label, t.count, c.label AS cat_label, c.color AS cat_color
+        FROM tag_implications ti
+        JOIN tags t ON t.id = ti.child_tag_id
+        JOIN categories c ON c.id = t.category_id
+        WHERE ti.parent_tag_id = %s
+        ORDER BY t.label
+        """,
+        (tag_id,),
+    ).fetchall()
+    return [
+        Tag(id=r[0], label=r[1], count=r[2], category=Category(label=r[3], color=r[4]))
+        for r in rows
+    ]
+
+
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
+
+@app.get("/post/{post_id}")
+def get_post(post_id: int):
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT id, score, type FROM posts WHERE id = %s", (post_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Post not found")
+        tags = _build_tags_for_post(conn, row[0])
+        return Post(id=row[0], score=row[1], type=row[2], tags=tags)
+
+
+@app.get("/posts/")
+def search_posts(query: str = ""):
+    with _get_conn() as conn:
+        if not query:
+            rows = conn.execute(
+                "SELECT id, score, type FROM posts ORDER BY id DESC LIMIT 50"
+            ).fetchall()
+        else:
+            tags = [tag.strip().lower() for tag in query.split()]
+            
+            placeholders = ','.join(['%s'] * len(tags))
+            rows = conn.execute(
+                f"""
+                SELECT p.id, p.score, p.type
+                FROM posts p
+                WHERE p.id IN (
+                    SELECT pt.post_id
+                    FROM post_tags pt
+                    JOIN tags t ON t.id = pt.tag_id
+                    WHERE LOWER(t.label) IN ({placeholders})
+                    GROUP BY pt.post_id
+                    HAVING COUNT(DISTINCT t.id) = %s
+                )
+                ORDER BY p.id DESC
+                LIMIT 50
+                """,
+                (*tags, len(tags))
+            ).fetchall()
+        
+        posts = []
+        for row in rows:
+            tags = _build_tags_for_post(conn, row[0])
+            posts.append(Post(id=row[0], score=row[1], type=row[2], tags=tags))
+        return posts
+
+
+@app.get("/tags/")
+def search_tags(query: str = ""):
+    with _get_conn() as conn:
+        if query:
+            rows = conn.execute(
+                """
+                SELECT t.id, t.label, t.count, c.label AS cat_label, c.color AS cat_color
+                FROM tags t
+                JOIN categories c ON c.id = t.category_id
+                WHERE t.label ILIKE %s
+                ORDER BY t.count DESC
+                LIMIT 50
+                """,
+                (f"%{query}%",),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT t.id, t.label, t.count, c.label AS cat_label, c.color AS cat_color
+                FROM tags t
+                JOIN categories c ON c.id = t.category_id
+                ORDER BY t.count DESC
+                LIMIT 50
+                """
+            ).fetchall()
+        return [
+            Tag(id=r[0], label=r[1], count=r[2], category=Category(label=r[3], color=r[4]))
+            for r in rows
+        ]
+
+
+@app.post("/tags/")
+def create_tag(req: CreateTagRequest):
+    label = req.label.strip().lower()
+    if not label:
+        raise HTTPException(status_code=400, detail="Tag label cannot be empty")
+
+    with _get_conn() as conn:
+        cat_row = conn.execute(
+            "SELECT id, label, color FROM categories WHERE id = %s", (req.category_id,)
+        ).fetchone()
+        if not cat_row:
+            raise HTTPException(status_code=400, detail="Category not found")
+
+        existing = conn.execute(
+            "SELECT id FROM tags WHERE label = %s", (label,)
+        ).fetchone()
+        if existing:
+            raise HTTPException(status_code=409, detail="Tag already exists")
+
+        row = conn.execute(
+            "INSERT INTO tags (label, category_id, count) VALUES (%s, %s, 0) RETURNING id",
+            (label, req.category_id),
+        ).fetchone()
+        conn.commit()
+
+        return Tag(
+            id=row[0],
+            label=label,
+            count=0,
+            category=Category(label=cat_row[1], color=cat_row[2]),
+        )
+
+@app.get("/tag/{tag}")
+def get_tag(tag: str):
+    with _get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT t.id, t.label, t.count, c.label AS cat_label, c.color AS cat_color
+            FROM tags t
+            JOIN categories c ON c.id = t.category_id
+            WHERE t.label = %s
+            """,
+            (tag,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        return Tag(id=row[0], label=row[1], count=row[2], category=Category(label=row[3], color=row[4]))
+
+
+@app.get("/tag/{tag}/implications")
+def get_tag_implications(tag: str):
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM tags WHERE label = %s", (tag,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        return _get_implications(conn, row[0])
+
+
+@app.put("/tag/{tag}/implications")
+def update_tag_implications(tag: str, req: UpdateImplicationsRequest):
+    with _get_conn() as conn:
+        parent_row = conn.execute(
+            "SELECT id FROM tags WHERE label = %s", (tag,)
+        ).fetchone()
+        if not parent_row:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        parent_id = parent_row[0]
+
+        child_ids = []
+        for label in req.implied_tag_labels:
+            label = label.strip().lower()
+            if not label:
+                continue
+            child_row = conn.execute(
+                "SELECT id FROM tags WHERE label = %s", (label,)
+            ).fetchone()
+            if not child_row:
+                raise HTTPException(status_code=400, detail=f"Tag '{label}' not found")
+            if child_row[0] == parent_id:
+                raise HTTPException(status_code=400, detail="A tag cannot imply itself")
+            child_ids.append(child_row[0])
+
+        conn.execute(
+            "DELETE FROM tag_implications WHERE parent_tag_id = %s", (parent_id,)
+        )
+        for child_id in child_ids:
+            conn.execute(
+                "INSERT INTO tag_implications (parent_tag_id, child_tag_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                (parent_id, child_id),
+            )
+
+        post_ids = [
+            r[0] for r in conn.execute(
+                "SELECT post_id FROM post_tags WHERE tag_id = %s", (parent_id,)
+            ).fetchall()
+        ]
+        for child_id in child_ids:
+            for pid in post_ids:
+                conn.execute(
+                    "INSERT INTO post_tags (post_id, tag_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                    (pid, child_id),
+                )
+            conn.execute(
+                "UPDATE tags SET count = (SELECT COUNT(*) FROM post_tags WHERE tag_id = %s) WHERE id = %s",
+                (child_id, child_id),
+            )
+
+        conn.commit()
+
+        return _get_implications(conn, parent_id)
+
+@app.put("/tag/{tag}")
+def update_tag(tag: str, req: UpdateTagRequest):
+    category_label = req.category_label.strip().lower()
+    if not category_label:
+        raise HTTPException(status_code=400, detail="Category label cannot be empty")
+
+    with _get_conn() as conn:
+        tag_row = conn.execute(
+            "SELECT id FROM tags WHERE label = %s", (tag,)
+        ).fetchone()
+        if not tag_row:
+            raise HTTPException(status_code=404, detail="Tag not found")
+
+        cat_row = conn.execute(
+            "SELECT id, label, color FROM categories WHERE label = %s", (category_label,)
+        ).fetchone()
+        if not cat_row:
+            raise HTTPException(status_code=400, detail="Category not found")
+
+        conn.execute(
+            "UPDATE tags SET category_id = %s WHERE id = %s",
+            (cat_row[0], tag_row[0]),
+        )
+        conn.commit()
+
+        row = conn.execute(
+            """
+            SELECT t.id, t.label, t.count, c.label AS cat_label, c.color AS cat_color
+            FROM tags t
+            JOIN categories c ON c.id = t.category_id
+            WHERE t.id = %s
+            """,
+            (tag_row[0],),
+        ).fetchone()
+
+        return Tag(
+            id=row[0],
+            label=row[1],
+            count=row[2],
+            category=Category(label=row[3], color=row[4]),
+        )
+
+
+@app.get("/categories")
+def get_categories():
+    with _get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, label, color FROM categories ORDER BY id"
+        ).fetchall()
+        return [{"id": r[0], "label": r[1], "color": r[2]} for r in rows]
+
+
+@app.post("/categories")
+def create_category(req: CreateCategoryRequest):
+    label = req.label.strip().lower()
+    color = req.color.strip()
+
+    if not label:
+        raise HTTPException(status_code=400, detail="Category label cannot be empty")
+    if not color:
+        raise HTTPException(status_code=400, detail="Category color cannot be empty")
+
+    with _get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM categories WHERE label = %s", (label,)
+        ).fetchone()
+        if existing:
+            raise HTTPException(status_code=409, detail="Category already exists")
+
+        row = conn.execute(
+            """
+            INSERT INTO categories (label, color)
+            VALUES (%s, %s)
+            RETURNING id, label, color
+            """,
+            (label, color),
+        ).fetchone()
+        conn.commit()
+        return {"id": row[0], "label": row[1], "color": row[2]}
+
+
+@app.put("/category/{category_label}")
+def update_category(category_label: str, req: UpdateCategoryRequest):
+    old_label = category_label.strip().lower()
+    new_label = req.label.strip().lower()
+    color = req.color.strip()
+
+    if not new_label:
+        raise HTTPException(status_code=400, detail="Category label cannot be empty")
+    if not color:
+        raise HTTPException(status_code=400, detail="Category color cannot be empty")
+
+    with _get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM categories WHERE label = %s", (old_label,)
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Category not found")
+
+        category_id = existing[0]
+
+        if new_label != old_label:
+            duplicate = conn.execute(
+                "SELECT id FROM categories WHERE label = %s", (new_label,)
+            ).fetchone()
+            if duplicate:
+                raise HTTPException(status_code=409, detail="Category label already exists")
+
+        row = conn.execute(
+            """
+            UPDATE categories
+            SET label = %s, color = %s
+            WHERE id = %s
+            RETURNING id, label, color
+            """,
+            (new_label, color, category_id),
+        ).fetchone()
+        conn.commit()
+
+        return {"id": row[0], "label": row[1], "color": row[2]}
+
+
+@app.get("/posts/count")
+def get_posts_count():
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT MAX(id) FROM posts"
+        ).fetchone()
+        max_id = row[0] if row and row[0] else 0
+        return {"maxId": max_id}
+
+
+@app.get("/stats")
+def get_stats():
+    with _get_conn() as conn:
+        row = conn.execute("SELECT COUNT(*) FROM posts").fetchone()
+        post_count = row[0] if row else 0
+
+    data_root = os.environ.get("DATA_ROOT", "/data")
+    media_dir = os.path.join(data_root, "media")
+    total_bytes = 0
+    if os.path.isdir(media_dir):
+        for entry in os.scandir(media_dir):
+            if entry.is_file():
+                total_bytes += entry.stat().st_size
+
+    return {"postCount": post_count, "totalBytes": total_bytes}
+
+@app.put("/post/{post_id}/tags")
+def update_post_tags(post_id: int, req: UpdatePostTagsRequest):
+    with _get_conn() as conn:
+        post_row = conn.execute(
+            "SELECT id FROM posts WHERE id = %s", (post_id,)
+        ).fetchone()
+        if not post_row:
+            raise HTTPException(status_code=404, detail="Post not found")
+
+        tag_ids = []
+        for label in req.tag_labels:
+            label = label.strip().lower()
+            if not label:
+                continue
+            row = conn.execute(
+                "SELECT id FROM tags WHERE label = %s", (label,)
+            ).fetchone()
+            if not row:
+                default_cat = conn.execute(
+                    "SELECT id FROM categories ORDER BY id DESC LIMIT 1"
+                ).fetchone()
+                if not default_cat:
+                    raise HTTPException(status_code=500, detail="No categories exist")
+                row = conn.execute(
+                    "INSERT INTO tags (label, category_id, count) VALUES (%s, %s, 0) RETURNING id",
+                    (label, default_cat[0]),
+                ).fetchone()
+            tag_ids.append(row[0])
+
+        old_tag_ids = [
+            r[0] for r in conn.execute(
+                "SELECT tag_id FROM post_tags WHERE post_id = %s", (post_id,)
+            ).fetchall()
+        ]
+
+        conn.execute("DELETE FROM post_tags WHERE post_id = %s", (post_id,))
+        for tid in tag_ids:
+            conn.execute(
+                "INSERT INTO post_tags (post_id, tag_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                (post_id, tid),
+            )
+
+        all_affected = set(old_tag_ids) | set(tag_ids)
+        for tid in all_affected:
+            conn.execute(
+                "UPDATE tags SET count = (SELECT COUNT(*) FROM post_tags WHERE tag_id = %s) WHERE id = %s",
+                (tid, tid),
+            )
+
+        implied_ids = set()
+        for tid in tag_ids:
+            impl_rows = conn.execute(
+                "SELECT child_tag_id FROM tag_implications WHERE parent_tag_id = %s", (tid,)
+            ).fetchall()
+            for r in impl_rows:
+                implied_ids.add(r[0])
+
+        for impl_id in implied_ids:
+            conn.execute(
+                "INSERT INTO post_tags (post_id, tag_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                (post_id, impl_id),
+            )
+            conn.execute(
+                "UPDATE tags SET count = (SELECT COUNT(*) FROM post_tags WHERE tag_id = %s) WHERE id = %s",
+                (impl_id, impl_id),
+            )
+
+        conn.commit()
+
+        return _build_tags_for_post(conn, post_id)
+
+@app.delete("/tag/{tag}")
+def delete_tag(tag: str):
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM tags WHERE label = %s", (tag,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Tag not found")
+
+        tag_id = row[0]
+
+        conn.execute("DELETE FROM post_tags WHERE tag_id = %s", (tag_id,))
+
+        conn.execute("DELETE FROM tag_implications WHERE parent_tag_id = %s OR child_tag_id = %s", (tag_id, tag_id))
+
+        conn.execute("DELETE FROM tags WHERE id = %s", (tag_id,))
+        conn.commit()
+
+        return {"detail": f"Tag '{tag}' deleted successfully"}
+
+@app.delete("/post/{post_id}")
+def delete_post(post_id: int):
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT id, type FROM posts WHERE id = %s", (post_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Post not found")
+
+        tag_ids = [
+            r[0] for r in conn.execute(
+                "SELECT tag_id FROM post_tags WHERE post_id = %s", (post_id,)
+            ).fetchall()
+        ]
+
+        conn.execute("DELETE FROM posts WHERE id = %s", (post_id,))
+
+        for tid in tag_ids:
+            conn.execute(
+                "UPDATE tags SET count = (SELECT COUNT(*) FROM post_tags WHERE tag_id = %s) WHERE id = %s",
+                (tid, tid),
+            )
+
+        conn.commit()
+
+    data_root = os.environ.get("DATA_ROOT", "/data")
+    ext = ".mp4" if row[1] == "video" else ".png"
+    media_path = os.path.join(data_root, "media", f"{post_id}{ext}")
+    thumb_path = os.path.join(data_root, "thumbnail", f"{post_id}.png")
+    for path in (media_path, thumb_path):
+        if os.path.isfile(path):
+            os.remove(path)
+
+    return {"detail": f"Post {post_id} deleted successfully"}
+
+
+@app.get("/post/{post_id}/next")
+def get_next_post(post_id: int):
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM posts WHERE id > %s ORDER BY id ASC LIMIT 1", (post_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="No next post")
+        return {"id": row[0]}
+
+
+@app.get("/post/{post_id}/prev")
+def get_prev_post(post_id: int):
+    with _get_conn() as conn:
+        row = conn.execute(
+            "SELECT id FROM posts WHERE id < %s ORDER BY id DESC LIMIT 1", (post_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="No previous post")
+        return {"id": row[0]}
+
+@app.post("/upload")
+async def upload_post(file: UploadFile = File(...), tags: str = Form("")):
+    content_type = file.content_type or ""
+    if content_type.startswith("image/"):
+        post_type = "image"
+    elif content_type.startswith("video/"):
+        post_type = "video"
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+
+    data_root = os.environ.get("DATA_ROOT", "/data")
+    media_dir = os.path.join(data_root, "media")
+    thumb_dir = os.path.join(data_root, "thumbnail")
+    os.makedirs(media_dir, exist_ok=True)
+    os.makedirs(thumb_dir, exist_ok=True)
+
+    with _get_conn() as conn:
+        row = conn.execute(
+            "INSERT INTO posts (score, type) VALUES (0, %s) RETURNING id",
+            (post_type,),
+        ).fetchone()
+        post_id = row[0]
+
+        ext = ".mp4" if post_type == "video" else ".png"
+        media_path = os.path.join(media_dir, f"{post_id}{ext}")
+        with open(media_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+
+        thumb_path = os.path.join(thumb_dir, f"{post_id}.png")
+        if post_type == "video":
+            subprocess.run(
+                ["ffmpeg", "-i", media_path, "-vframes", "1", "-vf", "scale=300:-1", thumb_path],
+                capture_output=True,
+            )
+        else:
+            subprocess.run(
+                ["ffmpeg", "-i", media_path, "-vf", "scale=300:-1", thumb_path],
+                capture_output=True,
+            )
+
+        tag_labels = [t.strip().lower() for t in tags.split() if t.strip()]
+        for label in tag_labels:
+            tag_row = conn.execute(
+                "SELECT id FROM tags WHERE label = %s", (label,)
+            ).fetchone()
+            if not tag_row:
+                default_cat = conn.execute(
+                    "SELECT id FROM categories ORDER BY id DESC LIMIT 1"
+                ).fetchone()
+                if not default_cat:
+                    raise HTTPException(status_code=500, detail="No categories exist")
+                tag_row = conn.execute(
+                    "INSERT INTO tags (label, category_id, count) VALUES (%s, %s, 0) RETURNING id",
+                    (label, default_cat[0]),
+                ).fetchone()
+            conn.execute(
+                "INSERT INTO post_tags (post_id, tag_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                (post_id, tag_row[0]),
+            )
+            conn.execute(
+                "UPDATE tags SET count = (SELECT COUNT(*) FROM post_tags WHERE tag_id = %s) WHERE id = %s",
+                (tag_row[0], tag_row[0]),
+            )
+
+        conn.commit()
+        return {"id": post_id}
+

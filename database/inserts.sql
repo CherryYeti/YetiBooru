@@ -1,0 +1,74 @@
+-- -- Categories
+-- INSERT INTO
+--   categories (label, color)
+-- VALUES
+--   ('meta', 'oklch(70.5% 0.213 47.604)'),
+--   ('copyright', 'oklch(0.6069 0.2154 257)'),
+--   ('character', 'oklch(0.7206 0.191 145.09)'),
+--   ('creator', 'oklch(0.7469 0.1856 75.87)'),
+--   ('general', 'oklch(0.7933 0.0072 247.92)');
+
+-- -- Tags
+-- INSERT INTO
+--   tags (label, category_id, count)
+-- VALUES
+--   ('animated', 1, 0),
+--   ('sound', 1, 0),
+--   ('loop', 1, 0),
+--   ('creator_a', 4, 0),
+--   ('creator_b', 4, 0);
+
+-- -- Posts
+-- INSERT INTO
+--   posts (score, type)
+-- VALUES
+--   (3, 'video'),
+--   (1, 'video'),
+--   (5, 'image'),
+--   (12, 'image'),
+--   (0, 'video'),
+--   (8, 'image'),
+--   (2, 'image'),
+--   (7, 'video');
+
+-- -- Post-tag associations
+-- INSERT INTO
+--   post_tags (post_id, tag_id)
+-- VALUES
+--   (1, 1),
+--   (1, 2),
+--   (1, 4),
+--   (2, 1),
+--   (2, 3),
+--   (2, 5),
+--   (3, 4),
+--   (3, 1),
+--   (4, 5),
+--   (4, 3),
+--   (5, 1),
+--   (5, 2),
+--   (5, 3),
+--   (6, 4),
+--   (6, 1),
+--   (7, 5),
+--   (7, 3),
+--   (8, 1),
+--   (8, 2),
+--   (8, 4);
+
+-- UPDATE tags
+-- SET
+--   count = (
+--     SELECT
+--       COUNT(*)
+--     FROM
+--       post_tags
+--     WHERE
+--       post_tags.tag_id = tags.id
+--   );
+
+-- -- Tag implications
+-- INSERT INTO
+--   tag_implications (parent_tag_id, child_tag_id)
+-- VALUES
+--   (1, 3);

@@ -1,0 +1,15 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
+@import 'tailwindcss';
+@theme {
+	--color-container: oklch(0.2768 0 0);
+	--color-container-alt: oklch(0.2294 0 0);
+	--color-container-text: oklch(0.7933 0.0072 247.92);
+}
+
+body {
+	min-height: 100vh;
+	min-width: 100vw;
+	background-color: oklch(0.2348 0.0041 264.49);
+	color: oklch(1 0 0);
+	font-family: 'Geist', sans-serif;
+}

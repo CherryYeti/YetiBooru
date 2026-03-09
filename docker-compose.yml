@@ -1,0 +1,78 @@
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8965:8965"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - storage:/data:ro
+    depends_on:
+      - client
+      - api
+
+  client:
+    build: ./client
+    environment:
+      - ORIGIN=http://localhost:8965
+      - BETTER_AUTH_SECRET=BHR4COIdaOna4kgIlbeOheAhn6gJNOOq # Example hash
+      - BETTER_AUTH_URL=http://localhost:8965
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=booru
+      - DB_PASSWORD=booru
+      - DB_NAME=booru
+    expose:
+      - "3000"
+    develop:
+      watch:
+        - path: ./client
+          action: rebuild
+          ignore:
+            - node_modules/
+            - dist/
+            - build/
+            - .next/
+            - .git/
+
+  api:
+    build: ./server
+    environment:
+      - DATA_ROOT=/data
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=booru
+      - DB_PASSWORD=booru
+      - DB_NAME=booru
+      - BETTER_AUTH_SECRET=BHR4COIdaOna4kgIlbeOheAhn6gJNOOq
+      - BETTER_AUTH_URL=http://localhost:8965
+
+    volumes:
+      - storage:/data
+    expose:
+      - "8000"
+    depends_on:
+      - db
+    develop:
+      watch:
+        - path: ./server
+          action: rebuild
+
+  db:
+    image: postgres:16
+    environment:
+      - POSTGRES_USER=booru
+      - POSTGRES_PASSWORD=booru
+      - POSTGRES_DB=booru
+      - BETTER_AUTH_SECRET=BHR4COIdaOna4kgIlbeOheAhn6gJNOOq
+      - BETTER_AUTH_URL=http://localhost:8965
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/inserts.sql:/docker-entrypoint-initdb.d/02-inserts.sql:ro
+    ports:
+      - "5432:5432"
+
+volumes:
+  pgdata:
+  booru_data:
+  storage:
