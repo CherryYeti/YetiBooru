@@ -72,7 +72,7 @@
 	{:else}
 		<div class="flex flex-row flex-wrap justify-center gap-4">
 			{#each posts as post (post.id)}
-				<Post postID={post.id} />
+				<Post postID={post.id} type={post.type} />
 			{/each}
 		</div>
 	{/if}

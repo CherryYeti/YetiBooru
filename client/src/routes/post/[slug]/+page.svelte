@@ -271,7 +271,7 @@
 					<ChevronRight />
 				</button>
 			</div>
-			<a href={resolve(`/data/media/${slug}.mp4`)} download>
+			<a href={resolve(`/data/media/${slug}.${post.type === 'video' ? 'mp4' : 'png'}`)} download>
 				<button
 					type="button"
 					class="mt-2 flex w-full items-center justify-center rounded-lg border border-container-text/15 bg-container px-4 py-2 text-center text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
@@ -397,9 +397,17 @@
 		</div>
 
 		<div class="order-1 w-full max-w-7xl min-w-0 px-4 md:order-2">
-			<!-- svelte-ignore a11y_media_has_caption -->
-			<video class="block h-auto w-full rounded-lg" src={`/data/media/${slug}.mp4`} controls
-			></video>
+			{#if post.type === 'video'}
+				<!-- svelte-ignore a11y_media_has_caption -->
+				<video class="block h-auto w-full rounded-lg" src={`/data/media/${slug}.mp4`} controls
+				></video>
+			{:else}
+				<img
+					class="block h-auto w-full rounded-lg"
+					src={`/data/media/${slug}.png`}
+					alt="Post {slug}"
+				/>
+			{/if}
 		</div>
 	</div>
 {/if}
