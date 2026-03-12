@@ -13,6 +13,7 @@
 
 	let isLoading = $state(true);
 	let error: string | undefined = $state();
+	let notFound = $state(false);
 
 	let isEditingTags = $state(false);
 	let newTagInput = $state('');
@@ -59,6 +60,10 @@
 					fetch(`/api/post/${slug}`),
 					fetch('/api/tags/')
 				]);
+				if (postRes.status === 404) {
+					notFound = true;
+					return;
+				}
 				if (!postRes.ok) throw new Error(`HTTP error! Status: ${postRes.status}`);
 				post = (await postRes.json()) as PostInterface;
 				if (tagsRes.ok) {
@@ -228,6 +233,17 @@
 
 {#if isLoading}
 	<p>Loading...</p>
+{:else if notFound}
+	<div class="flex flex-col items-center justify-center gap-4 pt-16">
+		<p class="text-2xl font-semibold">Post not found</p>
+		<p class="text-container-text/50">The post you're looking for doesn't exist.</p>
+		<a
+			href={resolve('/')}
+			class="rounded-lg bg-violet-500 px-4 py-2 text-white hover:bg-violet-400"
+		>
+			Go to Home
+		</a>
+	</div>
 {:else if error}
 	<p class="error">Error: {error}</p>
 {:else if post}
