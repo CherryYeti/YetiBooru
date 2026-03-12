@@ -67,6 +67,8 @@
 
 	{#if isLoading}
 		<p>Loading...</p>
+	{:else if posts.length === 0}
+		<p class="text-container-text/50">No posts found.</p>
 	{:else}
 		<div class="flex flex-row flex-wrap justify-center gap-4">
 			{#each posts as post (post.id)}

@@ -197,46 +197,53 @@
 			</form>
 		{/if}
 
-		<div class="w-full max-w-5xl overflow-hidden rounded-xl border border-container-text/15">
-			<table class="w-full">
-				<thead>
-					<tr class="bg-container text-container-text">
-						<th class="border-b border-container-text/15 px-4 py-2 text-left">Name</th>
-						<th class="border-b border-container-text/15 px-4 py-2 text-left">Count</th>
-						<th class="border-b border-container-text/15 px-4 py-2 text-left">Category</th>
-						<th class="border-b border-container-text/15 px-4 py-2 text-left">Implications</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each tags as tag (tag.id)}
-						<tr class="bg-container text-container-text transition-colors hover:bg-container-alt">
-							<td
-								class="border-b border-container-text/15 px-4 py-2"
-								style="color: {tag.category.color};"
-							>
-								<a href={resolve(`/tag/${tag.label}`)} class="hover:cursor-pointer hover:underline">
-									{tag.label}
-								</a>
-							</td>
-							<td class="border-b border-container-text/15 px-4 py-2">{tag.count}</td>
-							<td class="border-b border-container-text/15 px-4 py-2">{tag.category.label}</td>
-							<td class="border-b border-container-text/15 px-4 py-2">
-								{#if implications[tag.id]?.length}
-									{#each implications[tag.id] as impl, i (impl.id)}
-										<a
-											href={resolve(`/tag/${impl.label}`)}
-											class="hover:underline"
-											style="color:{impl.category.color}">{impl.label}</a
-										>{#if i < implications[tag.id].length - 1},&nbsp;{/if}
-									{/each}
-								{:else}
-									<span class="text-container-text/30">—</span>
-								{/if}
-							</td>
+		{#if tags.length === 0}
+			<p class="text-container-text/50">No tags found.</p>
+		{:else}
+			<div class="w-full max-w-5xl overflow-hidden rounded-xl border border-container-text/15">
+				<table class="w-full">
+					<thead>
+						<tr class="bg-container text-container-text">
+							<th class="border-b border-container-text/15 px-4 py-2 text-left">Name</th>
+							<th class="border-b border-container-text/15 px-4 py-2 text-left">Count</th>
+							<th class="border-b border-container-text/15 px-4 py-2 text-left">Category</th>
+							<th class="border-b border-container-text/15 px-4 py-2 text-left">Implications</th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
+					</thead>
+					<tbody>
+						{#each tags as tag (tag.id)}
+							<tr class="bg-container text-container-text transition-colors hover:bg-container-alt">
+								<td
+									class="border-b border-container-text/15 px-4 py-2"
+									style="color: {tag.category.color};"
+								>
+									<a
+										href={resolve(`/tag/${tag.label}`)}
+										class="hover:cursor-pointer hover:underline"
+									>
+										{tag.label}
+									</a>
+								</td>
+								<td class="border-b border-container-text/15 px-4 py-2">{tag.count}</td>
+								<td class="border-b border-container-text/15 px-4 py-2">{tag.category.label}</td>
+								<td class="border-b border-container-text/15 px-4 py-2">
+									{#if implications[tag.id]?.length}
+										{#each implications[tag.id] as impl, i (impl.id)}
+											<a
+												href={resolve(`/tag/${impl.label}`)}
+												class="hover:underline"
+												style="color:{impl.category.color}">{impl.label}</a
+											>{#if i < implications[tag.id].length - 1},&nbsp;{/if}
+										{/each}
+									{:else}
+										<span class="text-container-text/30">—</span>
+									{/if}
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{/if}
 	</div>
 {/if}

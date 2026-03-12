@@ -220,73 +220,77 @@
 			{/if}
 
 			<div class="flex flex-col gap-4">
-				{#each categories as category (category.id ?? category.label)}
-					<div class="rounded-lg border border-container-text/15 bg-container-alt p-4">
-						{#if editingOriginalLabel === category.label}
-							<form onsubmit={saveEdit} class="flex flex-col gap-3">
-								{#if editError}
-									<p class="rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{editError}</p>
-								{/if}
+				{#if categories.length === 0}
+					<p class="text-container-text/50">No categories found.</p>
+				{:else}
+					{#each categories as category (category.id ?? category.label)}
+						<div class="rounded-lg border border-container-text/15 bg-container-alt p-4">
+							{#if editingOriginalLabel === category.label}
+								<form onsubmit={saveEdit} class="flex flex-col gap-3">
+									{#if editError}
+										<p class="rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{editError}</p>
+									{/if}
 
-								<div class="flex flex-col gap-1">
-									<label for="edit-label-{category.label}" class="text-sm text-container-text"
-										>Label</label
-									>
-									<input
-										id="edit-label-{category.label}"
-										bind:value={editLabel}
-										class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-lg outline-none"
-									/>
-								</div>
+									<div class="flex flex-col gap-1">
+										<label for="edit-label-{category.label}" class="text-sm text-container-text"
+											>Label</label
+										>
+										<input
+											id="edit-label-{category.label}"
+											bind:value={editLabel}
+											class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-lg outline-none"
+										/>
+									</div>
 
-								<div class="flex flex-col gap-1">
-									<label for="edit-color-{category.label}" class="text-sm text-container-text"
-										>Color</label
-									>
-									<input
-										id="edit-color-{category.label}"
-										bind:value={editColor}
-										class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-lg outline-none"
-									/>
-								</div>
+									<div class="flex flex-col gap-1">
+										<label for="edit-color-{category.label}" class="text-sm text-container-text"
+											>Color</label
+										>
+										<input
+											id="edit-color-{category.label}"
+											bind:value={editColor}
+											class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-lg outline-none"
+										/>
+									</div>
 
-								<div class="flex gap-2">
-									<button
-										type="submit"
-										disabled={isSavingEdit}
-										class="rounded-lg bg-violet-500 px-4 py-2 text-white hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-									>
-										{isSavingEdit ? 'Saving...' : 'Save'}
-									</button>
-									<button
-										type="button"
-										class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container"
-										onclick={cancelEdit}
-									>
-										Cancel
-									</button>
+									<div class="flex gap-2">
+										<button
+											type="submit"
+											disabled={isSavingEdit}
+											class="rounded-lg bg-violet-500 px-4 py-2 text-white hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+										>
+											{isSavingEdit ? 'Saving...' : 'Save'}
+										</button>
+										<button
+											type="button"
+											class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container"
+											onclick={cancelEdit}
+										>
+											Cancel
+										</button>
+									</div>
+								</form>
+							{:else}
+								<div class="flex items-center justify-between gap-3">
+									<div class="flex items-center gap-3">
+										<p class="text-2xl font-semibold" style="color:{category.color}">
+											{category.label}
+										</p>
+									</div>
+									{#if $session?.data}
+										<button
+											type="button"
+											class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container"
+											onclick={() => startEdit(category)}
+										>
+											Edit
+										</button>
+									{/if}
 								</div>
-							</form>
-						{:else}
-							<div class="flex items-center justify-between gap-3">
-								<div class="flex items-center gap-3">
-									<p class="text-2xl font-semibold" style="color:{category.color}">
-										{category.label}
-									</p>
-								</div>
-								{#if $session?.data}
-									<button
-										type="button"
-										class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container"
-										onclick={() => startEdit(category)}
-									>
-										Edit
-									</button>
-								{/if}
-							</div>
-						{/if}
-					</div>
-				{/each}
+							{/if}
+						</div>
+					{/each}
+				{/if}
 			</div>
 		</div>
 	</div>
