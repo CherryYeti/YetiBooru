@@ -1,11 +1,12 @@
 import os
+import json
+import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Literal
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel
 from psycopg_pool import ConnectionPool
-import shutil
 import subprocess
 
 DB_CONNINFO = (
@@ -72,8 +73,96 @@ class UpdateCategoryRequest(BaseModel):
 class UpdatePostTagsRequest(BaseModel):
     tag_labels: list[str]
 
+
+UPLOAD_CHUNK_SIZE = 4 * 1024 * 1024
+
 def _get_conn():
     return pool.connection()
+
+
+def _get_upload_paths(upload_id: str):
+    data_root = os.environ.get("DATA_ROOT", "/data")
+    upload_dir = os.path.join(data_root, "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    return (
+        os.path.join(upload_dir, f"{upload_id}.meta.json"),
+        os.path.join(upload_dir, f"{upload_id}.part"),
+    )
+
+
+def _load_upload_meta(upload_id: str) -> dict:
+    meta_path, _ = _get_upload_paths(upload_id)
+    try:
+        with open(meta_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Upload session not found") from e
+
+
+def _save_upload_meta(upload_id: str, meta: dict):
+    meta_path, _ = _get_upload_paths(upload_id)
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta, f)
+
+
+def _cleanup_upload(upload_id: str):
+    meta_path, part_path = _get_upload_paths(upload_id)
+    for path in (meta_path, part_path):
+        if os.path.isfile(path):
+            os.remove(path)
+
+
+def _store_post_and_tags(conn, post_type: str, media_path: str, tags: str):
+    row = conn.execute(
+        "INSERT INTO posts (score, type) VALUES (0, %s) RETURNING id",
+        (post_type,),
+    ).fetchone()
+    post_id = row[0]
+
+    data_root = os.environ.get("DATA_ROOT", "/data")
+    media_dir = os.path.join(data_root, "media")
+    thumb_dir = os.path.join(data_root, "thumbnail")
+    os.makedirs(media_dir, exist_ok=True)
+    os.makedirs(thumb_dir, exist_ok=True)
+
+    ext = ".mp4" if post_type == "video" else ".png"
+    final_media_path = os.path.join(media_dir, f"{post_id}{ext}")
+    os.replace(media_path, final_media_path)
+
+    thumb_path = os.path.join(thumb_dir, f"{post_id}.png")
+    if post_type == "video":
+        ffmpeg_cmd = ["ffmpeg", "-i", final_media_path, "-vframes", "1", "-vf", "scale=300:-1", thumb_path]
+    else:
+        ffmpeg_cmd = ["ffmpeg", "-i", final_media_path, "-vf", "scale=300:-1", thumb_path]
+    ffmpeg_result = subprocess.run(ffmpeg_cmd, capture_output=True)
+    if ffmpeg_result.returncode != 0:
+        raise HTTPException(status_code=500, detail="Failed to generate thumbnail")
+
+    tag_labels = [t.strip().lower() for t in tags.split() if t.strip()]
+    for label in tag_labels:
+        tag_row = conn.execute(
+            "SELECT id FROM tags WHERE label = %s", (label,)
+        ).fetchone()
+        if not tag_row:
+            default_cat = conn.execute(
+                "SELECT id FROM categories ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+            if not default_cat:
+                raise HTTPException(status_code=500, detail="No categories exist")
+            tag_row = conn.execute(
+                "INSERT INTO tags (label, category_id, count) VALUES (%s, %s, 0) RETURNING id",
+                (label, default_cat[0]),
+            ).fetchone()
+        conn.execute(
+            "INSERT INTO post_tags (post_id, tag_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+            (post_id, tag_row[0]),
+        )
+        conn.execute(
+            "UPDATE tags SET count = (SELECT COUNT(*) FROM post_tags WHERE tag_id = %s) WHERE id = %s",
+            (tag_row[0], tag_row[0]),
+        )
+
+    return post_id
 
 
 def _build_tags_for_post(conn, post_id: int) -> list[Tag]:
@@ -615,60 +704,97 @@ async def upload_post(file: UploadFile = File(...), tags: str = Form("")):
     else:
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
-    data_root = os.environ.get("DATA_ROOT", "/data")
-    media_dir = os.path.join(data_root, "media")
-    thumb_dir = os.path.join(data_root, "thumbnail")
-    os.makedirs(media_dir, exist_ok=True)
-    os.makedirs(thumb_dir, exist_ok=True)
-
     with _get_conn() as conn:
-        row = conn.execute(
-            "INSERT INTO posts (score, type) VALUES (0, %s) RETURNING id",
-            (post_type,),
-        ).fetchone()
-        post_id = row[0]
+        upload_id = str(uuid.uuid4())
+        _, part_path = _get_upload_paths(upload_id)
+        with open(part_path, "wb") as out_file:
+            while True:
+                chunk = await file.read(UPLOAD_CHUNK_SIZE)
+                if not chunk:
+                    break
+                out_file.write(chunk)
 
-        ext = ".mp4" if post_type == "video" else ".png"
-        media_path = os.path.join(media_dir, f"{post_id}{ext}")
-        with open(media_path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
-
-        thumb_path = os.path.join(thumb_dir, f"{post_id}.png")
-        if post_type == "video":
-            subprocess.run(
-                ["ffmpeg", "-i", media_path, "-vframes", "1", "-vf", "scale=300:-1", thumb_path],
-                capture_output=True,
-            )
-        else:
-            subprocess.run(
-                ["ffmpeg", "-i", media_path, "-vf", "scale=300:-1", thumb_path],
-                capture_output=True,
-            )
-
-        tag_labels = [t.strip().lower() for t in tags.split() if t.strip()]
-        for label in tag_labels:
-            tag_row = conn.execute(
-                "SELECT id FROM tags WHERE label = %s", (label,)
-            ).fetchone()
-            if not tag_row:
-                default_cat = conn.execute(
-                    "SELECT id FROM categories ORDER BY id DESC LIMIT 1"
-                ).fetchone()
-                if not default_cat:
-                    raise HTTPException(status_code=500, detail="No categories exist")
-                tag_row = conn.execute(
-                    "INSERT INTO tags (label, category_id, count) VALUES (%s, %s, 0) RETURNING id",
-                    (label, default_cat[0]),
-                ).fetchone()
-            conn.execute(
-                "INSERT INTO post_tags (post_id, tag_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
-                (post_id, tag_row[0]),
-            )
-            conn.execute(
-                "UPDATE tags SET count = (SELECT COUNT(*) FROM post_tags WHERE tag_id = %s) WHERE id = %s",
-                (tag_row[0], tag_row[0]),
-            )
-
+        post_id = _store_post_and_tags(conn, post_type, part_path, tags)
         conn.commit()
         return {"id": post_id}
+
+
+@app.post("/upload/init")
+async def init_upload(content_type: str = Form(...)):
+    if content_type.startswith("image/"):
+        post_type = "image"
+    elif content_type.startswith("video/"):
+        post_type = "video"
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported file type")
+
+    upload_id = str(uuid.uuid4())
+    meta = {
+        "post_type": post_type,
+        "next_chunk": 0,
+        "received_bytes": 0,
+    }
+    _save_upload_meta(upload_id, meta)
+    return {"uploadId": upload_id, "chunkSize": UPLOAD_CHUNK_SIZE}
+
+
+@app.post("/upload/chunk")
+async def upload_chunk(
+    upload_id: str = Form(...),
+    chunk_index: int = Form(...),
+    chunk: UploadFile = File(...),
+):
+    meta = _load_upload_meta(upload_id)
+    expected_chunk = int(meta.get("next_chunk", 0))
+    if chunk_index != expected_chunk:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Out-of-order chunk. Expected {expected_chunk}, got {chunk_index}",
+        )
+
+    _, part_path = _get_upload_paths(upload_id)
+    bytes_written = 0
+    with open(part_path, "ab") as out_file:
+        while True:
+            block = await chunk.read(UPLOAD_CHUNK_SIZE)
+            if not block:
+                break
+            out_file.write(block)
+            bytes_written += len(block)
+
+    meta["next_chunk"] = expected_chunk + 1
+    meta["received_bytes"] = int(meta.get("received_bytes", 0)) + bytes_written
+    _save_upload_meta(upload_id, meta)
+
+    return {
+        "nextChunk": meta["next_chunk"],
+        "receivedBytes": meta["received_bytes"],
+    }
+
+
+@app.post("/upload/complete")
+async def complete_upload(upload_id: str = Form(...), tags: str = Form("")):
+    meta = _load_upload_meta(upload_id)
+    post_type = meta.get("post_type")
+    if post_type not in ("image", "video"):
+        raise HTTPException(status_code=400, detail="Invalid upload session")
+
+    _, part_path = _get_upload_paths(upload_id)
+    if not os.path.isfile(part_path):
+        raise HTTPException(status_code=400, detail="No uploaded data found")
+
+    try:
+        with _get_conn() as conn:
+            post_id = _store_post_and_tags(conn, post_type, part_path, tags)
+            conn.commit()
+            _cleanup_upload(upload_id)
+            return {"id": post_id}
+    except Exception:
+        raise
+
+
+@app.delete("/upload/{upload_id}")
+async def abort_upload(upload_id: str):
+    _cleanup_upload(upload_id)
+    return {"detail": "Upload session removed"}
 

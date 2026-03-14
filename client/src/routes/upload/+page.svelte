@@ -18,6 +18,7 @@
 	let allTags: TagInterface[] = $state([]);
 	let uploading = $state(false);
 	let error = $state('');
+	const CHUNK_SIZE = 4 * 1024 * 1024;
 
 	$effect(() => {
 		fetch('/api/tags/')
@@ -87,22 +88,74 @@
 			let lastId: number | null = null;
 
 			for (const item of items) {
-				const form = new FormData();
-				form.append('file', item.file);
-				form.append('tags', tags);
+				let uploadId = '';
 
-				const res = await fetch('/api/upload', {
-					method: 'POST',
-					body: form
-				});
+				try {
+					const initForm = new FormData();
+					initForm.append('content_type', item.file.type);
 
-				if (!res.ok) {
-					const data = await res.json().catch(() => ({ detail: 'Upload failed' }));
-					throw new Error(data.detail || `Upload failed (${res.status})`);
+					const initRes = await fetch('/api/upload/init', {
+						method: 'POST',
+						body: initForm
+					});
+
+					if (!initRes.ok) {
+						const data = await initRes.json().catch(() => ({ detail: 'Upload init failed' }));
+						throw new Error(data.detail || `Upload init failed (${initRes.status})`);
+					}
+
+					const initData = await initRes.json();
+					uploadId = initData.uploadId;
+
+					if (!uploadId) {
+						throw new Error('Upload init did not return upload ID');
+					}
+
+					let chunkIndex = 0;
+					for (let offset = 0; offset < item.file.size; offset += CHUNK_SIZE) {
+						const blob = item.file.slice(offset, offset + CHUNK_SIZE);
+						const chunkForm = new FormData();
+						chunkForm.append('upload_id', uploadId);
+						chunkForm.append('chunk_index', String(chunkIndex));
+						chunkForm.append('chunk', blob, item.file.name);
+
+						const chunkRes = await fetch('/api/upload/chunk', {
+							method: 'POST',
+							body: chunkForm
+						});
+
+						if (!chunkRes.ok) {
+							const data = await chunkRes.json().catch(() => ({ detail: 'Upload chunk failed' }));
+							throw new Error(data.detail || `Upload chunk failed (${chunkRes.status})`);
+						}
+
+						chunkIndex += 1;
+					}
+
+					const completeForm = new FormData();
+					completeForm.append('upload_id', uploadId);
+					completeForm.append('tags', tags);
+
+					const completeRes = await fetch('/api/upload/complete', {
+						method: 'POST',
+						body: completeForm
+					});
+
+					if (!completeRes.ok) {
+						const data = await completeRes
+							.json()
+							.catch(() => ({ detail: 'Upload completion failed' }));
+						throw new Error(data.detail || `Upload completion failed (${completeRes.status})`);
+					}
+
+					const completeData = await completeRes.json();
+					lastId = completeData.id;
+				} catch (itemErr) {
+					if (uploadId) {
+						await fetch(`/api/upload/${uploadId}`, { method: 'DELETE' }).catch(() => undefined);
+					}
+					throw itemErr;
 				}
-
-				const data = await res.json();
-				lastId = data.id;
 			}
 
 			clear();
