@@ -14,7 +14,9 @@ export const auth = betterAuth({
 		database: env.DB_NAME
 	}),
 	emailAndPassword: {
-		enabled: true
+		enabled: true,
+		minPasswordLength: 8,
+		maxPasswordLength: 128
 	},
 	plugins: [admin()]
 });
