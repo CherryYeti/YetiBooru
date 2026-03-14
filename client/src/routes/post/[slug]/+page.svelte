@@ -28,6 +28,7 @@
 
 	const slug = $derived(page.params.slug ?? '');
 	const slugNum = $derived(Number(slug));
+	const mediaExt = $derived(post?.media_ext || (post?.type === 'video' ? 'mp4' : 'png'));
 
 	let value = $derived($searchQuery ?? '');
 
@@ -287,7 +288,7 @@
 					<ChevronRight />
 				</button>
 			</div>
-			<a href={resolve(`/data/media/${slug}.${post.type === 'video' ? 'mp4' : 'png'}`)} download>
+			<a href={`/data/media/${slug}.${mediaExt}`} download>
 				<button
 					type="button"
 					class="mt-2 flex w-full items-center justify-center rounded-lg border border-container-text/15 bg-container px-4 py-2 text-center text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
@@ -415,12 +416,15 @@
 		<div class="order-1 w-full max-w-7xl min-w-0 px-4 md:order-2">
 			{#if post.type === 'video'}
 				<!-- svelte-ignore a11y_media_has_caption -->
-				<video class="block h-auto w-full rounded-lg" src={`/data/media/${slug}.mp4`} controls
+				<video
+					class="block h-auto w-full rounded-lg"
+					src={`/data/media/${slug}.${mediaExt}`}
+					controls
 				></video>
 			{:else}
 				<img
 					class="block h-auto w-full rounded-lg"
-					src={`/data/media/${slug}.png`}
+					src={`/data/media/${slug}.${mediaExt}`}
 					alt="Post {slug}"
 				/>
 			{/if}

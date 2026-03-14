@@ -93,6 +93,7 @@
 				try {
 					const initForm = new FormData();
 					initForm.append('content_type', item.file.type);
+					initForm.append('filename', item.file.name);
 
 					const initRes = await fetch('/api/upload/init', {
 						method: 'POST',

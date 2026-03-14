@@ -24,6 +24,16 @@ pool: ConnectionPool | None = None
 async def lifespan(app: FastAPI):
     global pool
     pool = ConnectionPool(DB_CONNINFO, min_size=2, max_size=10)
+    with pool.connection() as conn:
+        conn.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_ext VARCHAR(10)")
+        conn.execute(
+            """
+            UPDATE posts
+            SET media_ext = CASE WHEN type = 'video' THEN 'mp4' ELSE 'png' END
+            WHERE media_ext IS NULL OR media_ext = ''
+            """
+        )
+        conn.commit()
     yield
     pool.close()
 
@@ -51,6 +61,7 @@ class Post:
     score: int
     tags: list[Tag]
     type: Literal["video", "image"]
+    media_ext: str
 
 class CreateTagRequest(BaseModel):
     label: str
@@ -112,10 +123,46 @@ def _cleanup_upload(upload_id: str):
             os.remove(path)
 
 
-def _store_post_and_tags(conn, post_type: str, media_path: str, tags: str):
+def _normalize_ext(ext: str) -> str:
+    normalized = ext.strip().lower().lstrip(".")
+    if not normalized or len(normalized) > 10 or not normalized.isalnum():
+        return ""
+    return normalized
+
+
+def _guess_media_ext(post_type: str, content_type: str, filename: str | None) -> str:
+    ct = (content_type or "").lower()
+    image_by_type = {
+        "image/gif": "gif",
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/webp": "webp",
+        "image/bmp": "bmp",
+    }
+    video_by_type = {
+        "video/mp4": "mp4",
+        "video/webm": "webm",
+        "video/quicktime": "mov",
+        "video/x-matroska": "mkv",
+    }
+
+    if post_type == "image" and ct in image_by_type:
+        return image_by_type[ct]
+    if post_type == "video" and ct in video_by_type:
+        return video_by_type[ct]
+
+    if filename and "." in filename:
+        candidate = _normalize_ext(filename.rsplit(".", 1)[1])
+        if candidate:
+            return candidate
+
+    return "mp4" if post_type == "video" else "png"
+
+
+def _store_post_and_tags(conn, post_type: str, media_path: str, tags: str, media_ext: str):
     row = conn.execute(
-        "INSERT INTO posts (score, type) VALUES (0, %s) RETURNING id",
-        (post_type,),
+        "INSERT INTO posts (score, type, media_ext) VALUES (0, %s, %s) RETURNING id",
+        (post_type, media_ext),
     ).fetchone()
     post_id = row[0]
 
@@ -125,15 +172,15 @@ def _store_post_and_tags(conn, post_type: str, media_path: str, tags: str):
     os.makedirs(media_dir, exist_ok=True)
     os.makedirs(thumb_dir, exist_ok=True)
 
-    ext = ".mp4" if post_type == "video" else ".png"
-    final_media_path = os.path.join(media_dir, f"{post_id}{ext}")
+    ext = _normalize_ext(media_ext) or ("mp4" if post_type == "video" else "png")
+    final_media_path = os.path.join(media_dir, f"{post_id}.{ext}")
     os.replace(media_path, final_media_path)
 
     thumb_path = os.path.join(thumb_dir, f"{post_id}.png")
     if post_type == "video":
         ffmpeg_cmd = ["ffmpeg", "-i", final_media_path, "-vframes", "1", "-vf", "scale=300:-1", thumb_path]
     else:
-        ffmpeg_cmd = ["ffmpeg", "-i", final_media_path, "-vf", "scale=300:-1", thumb_path]
+        ffmpeg_cmd = ["ffmpeg", "-i", final_media_path, "-vframes", "1", "-vf", "scale=300:-1", thumb_path]
     ffmpeg_result = subprocess.run(ffmpeg_cmd, capture_output=True)
     if ffmpeg_result.returncode != 0:
         raise HTTPException(status_code=500, detail="Failed to generate thumbnail")
@@ -210,12 +257,18 @@ def read_root():
 def get_post(post_id: int):
     with _get_conn() as conn:
         row = conn.execute(
-            "SELECT id, score, type FROM posts WHERE id = %s", (post_id,)
+            """
+            SELECT id, score, type,
+                   COALESCE(media_ext, CASE WHEN type = 'video' THEN 'mp4' ELSE 'png' END) AS media_ext
+            FROM posts
+            WHERE id = %s
+            """,
+            (post_id,)
         ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Post not found")
         tags = _build_tags_for_post(conn, row[0])
-        return Post(id=row[0], score=row[1], type=row[2], tags=tags)
+        return Post(id=row[0], score=row[1], type=row[2], media_ext=row[3], tags=tags)
 
 
 @app.get("/posts/")
@@ -223,7 +276,13 @@ def search_posts(query: str = ""):
     with _get_conn() as conn:
         if not query:
             rows = conn.execute(
-                "SELECT id, score, type FROM posts ORDER BY id DESC LIMIT 50"
+                """
+                SELECT id, score, type,
+                       COALESCE(media_ext, CASE WHEN type = 'video' THEN 'mp4' ELSE 'png' END) AS media_ext
+                FROM posts
+                ORDER BY id DESC
+                LIMIT 50
+                """
             ).fetchall()
         else:
             tags = [tag.strip().lower() for tag in query.split()]
@@ -231,7 +290,8 @@ def search_posts(query: str = ""):
             placeholders = ','.join(['%s'] * len(tags))
             rows = conn.execute(
                 f"""
-                SELECT p.id, p.score, p.type
+                  SELECT p.id, p.score, p.type,
+                      COALESCE(p.media_ext, CASE WHEN p.type = 'video' THEN 'mp4' ELSE 'png' END) AS media_ext
                 FROM posts p
                 WHERE p.id IN (
                     SELECT pt.post_id
@@ -250,7 +310,7 @@ def search_posts(query: str = ""):
         posts = []
         for row in rows:
             tags = _build_tags_for_post(conn, row[0])
-            posts.append(Post(id=row[0], score=row[1], type=row[2], tags=tags))
+            posts.append(Post(id=row[0], score=row[1], type=row[2], media_ext=row[3], tags=tags))
         return posts
 
 
@@ -641,7 +701,13 @@ def delete_tag(tag: str):
 def delete_post(post_id: int):
     with _get_conn() as conn:
         row = conn.execute(
-            "SELECT id, type FROM posts WHERE id = %s", (post_id,)
+            """
+            SELECT id, type,
+                   COALESCE(media_ext, CASE WHEN type = 'video' THEN 'mp4' ELSE 'png' END) AS media_ext
+            FROM posts
+            WHERE id = %s
+            """,
+            (post_id,)
         ).fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Post not found")
@@ -663,8 +729,8 @@ def delete_post(post_id: int):
         conn.commit()
 
     data_root = os.environ.get("DATA_ROOT", "/data")
-    ext = ".mp4" if row[1] == "video" else ".png"
-    media_path = os.path.join(data_root, "media", f"{post_id}{ext}")
+    ext = _normalize_ext(row[2]) or ("mp4" if row[1] == "video" else "png")
+    media_path = os.path.join(data_root, "media", f"{post_id}.{ext}")
     thumb_path = os.path.join(data_root, "thumbnail", f"{post_id}.png")
     for path in (media_path, thumb_path):
         if os.path.isfile(path):
@@ -703,6 +769,7 @@ async def upload_post(file: UploadFile = File(...), tags: str = Form("")):
         post_type = "video"
     else:
         raise HTTPException(status_code=400, detail="Unsupported file type")
+    media_ext = _guess_media_ext(post_type, content_type, file.filename)
 
     with _get_conn() as conn:
         upload_id = str(uuid.uuid4())
@@ -714,13 +781,13 @@ async def upload_post(file: UploadFile = File(...), tags: str = Form("")):
                     break
                 out_file.write(chunk)
 
-        post_id = _store_post_and_tags(conn, post_type, part_path, tags)
+        post_id = _store_post_and_tags(conn, post_type, part_path, tags, media_ext)
         conn.commit()
         return {"id": post_id}
 
 
 @app.post("/upload/init")
-async def init_upload(content_type: str = Form(...)):
+async def init_upload(content_type: str = Form(...), filename: str = Form("")):
     if content_type.startswith("image/"):
         post_type = "image"
     elif content_type.startswith("video/"):
@@ -728,9 +795,12 @@ async def init_upload(content_type: str = Form(...)):
     else:
         raise HTTPException(status_code=400, detail="Unsupported file type")
 
+    media_ext = _guess_media_ext(post_type, content_type, filename)
+
     upload_id = str(uuid.uuid4())
     meta = {
         "post_type": post_type,
+        "media_ext": media_ext,
         "next_chunk": 0,
         "received_bytes": 0,
     }
@@ -778,6 +848,7 @@ async def complete_upload(upload_id: str = Form(...), tags: str = Form("")):
     post_type = meta.get("post_type")
     if post_type not in ("image", "video"):
         raise HTTPException(status_code=400, detail="Invalid upload session")
+    media_ext = _normalize_ext(str(meta.get("media_ext", ""))) or ("mp4" if post_type == "video" else "png")
 
     _, part_path = _get_upload_paths(upload_id)
     if not os.path.isfile(part_path):
@@ -785,7 +856,7 @@ async def complete_upload(upload_id: str = Form(...), tags: str = Form("")):
 
     try:
         with _get_conn() as conn:
-            post_id = _store_post_and_tags(conn, post_type, part_path, tags)
+            post_id = _store_post_and_tags(conn, post_type, part_path, tags, media_ext)
             conn.commit()
             _cleanup_upload(upload_id)
             return {"id": post_id}
