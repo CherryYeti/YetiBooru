@@ -63,7 +63,7 @@
 		<button
 			type="submit"
 			disabled={loading}
-			class="mt-2 rounded bg-white px-4 py-2 font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-50"
+			class="mt-2 rounded-lg bg-violet-500 px-4 py-2 font-semibold text-white transition-opacity hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 		>
 			{loading ? 'Logging in...' : 'Log In'}
 		</button>
