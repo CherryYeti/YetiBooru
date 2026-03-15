@@ -1,7 +1,8 @@
 import os
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from api.authz import AuthUser, require_admin, require_moderator
 from api.db import get_conn
 from api.schemas import Post, UpdatePostTagsRequest
 from api.services import build_tags_for_post, get_default_category_id, normalize_ext
@@ -125,7 +126,7 @@ def get_stats():
 
 
 @router.put("/post/{post_id}/tags")
-def update_post_tags(post_id: int, req: UpdatePostTagsRequest):
+def update_post_tags(post_id: int, req: UpdatePostTagsRequest, _: AuthUser = Depends(require_moderator)):
     with get_conn() as conn:
         post_row = conn.execute(
             "SELECT id FROM posts WHERE id = %s", (post_id,)
@@ -193,7 +194,7 @@ def update_post_tags(post_id: int, req: UpdatePostTagsRequest):
 
 
 @router.delete("/post/{post_id}")
-def delete_post(post_id: int):
+def delete_post(post_id: int, _: AuthUser = Depends(require_admin)):
     with get_conn() as conn:
         row = conn.execute(
             """

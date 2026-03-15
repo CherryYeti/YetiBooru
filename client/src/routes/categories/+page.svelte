@@ -1,8 +1,12 @@
 <script lang="ts">
 	import type { CategoryInterface } from '$lib/types/tag';
 	import { authClient } from '$lib/auth-client';
+	import { canAdmin, canModerate } from '$lib/roles';
 
 	let session = authClient.useSession();
+	let role = $derived($session?.data?.user?.role ?? 'user');
+	let canManageCategories = $derived(canModerate(role));
+	let canSetDefaultCategory = $derived(canAdmin(role));
 
 	let categories: CategoryInterface[] = $state([]);
 	let isLoading = $state(true);
@@ -190,7 +194,7 @@
 		<div class="w-full max-w-5xl rounded-xl border border-container-text/15 bg-container p-6">
 			<div class="mb-4 flex items-center justify-between">
 				<h2 class="text-3xl font-semibold">Categories</h2>
-				{#if $session?.data}
+				{#if canManageCategories}
 					<button
 						type="button"
 						class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
@@ -314,9 +318,9 @@
 											>
 										{/if}
 									</div>
-									{#if $session?.data}
+									{#if canManageCategories}
 										<div class="flex gap-2">
-											{#if !category.is_default}
+											{#if !category.is_default && canSetDefaultCategory}
 												<button
 													type="button"
 													disabled={isSettingDefault}

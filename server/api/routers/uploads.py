@@ -1,8 +1,9 @@
 import os
 import uuid
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
+from api.authz import AuthUser, require_user
 from api.db import get_conn
 from api.services import (
     UPLOAD_CHUNK_SIZE,
@@ -26,6 +27,7 @@ async def upload_post(
     tags: str = Form(""),
     uploader_name: str | None = Form(None),
     source_url: str | None = Form(None),
+    _: AuthUser = Depends(require_user),
 ):
     content_type = file.content_type or ""
     if content_type.startswith("image/"):
@@ -65,6 +67,7 @@ async def init_upload(
     filename: str = Form(""),
     uploader_name: str | None = Form(None),
     source_url: str | None = Form(None),
+    _: AuthUser = Depends(require_user),
 ):
     if content_type.startswith("image/"):
         post_type = "image"
@@ -93,6 +96,7 @@ async def upload_chunk(
     upload_id: str = Form(...),
     chunk_index: int = Form(...),
     chunk: UploadFile = File(...),
+    _: AuthUser = Depends(require_user),
 ):
     meta = load_upload_meta(upload_id)
     expected_chunk = int(meta.get("next_chunk", 0))
@@ -123,7 +127,11 @@ async def upload_chunk(
 
 
 @router.post("/upload/complete")
-async def complete_upload(upload_id: str = Form(...), tags: str = Form("")):
+async def complete_upload(
+    upload_id: str = Form(...),
+    tags: str = Form(""),
+    _: AuthUser = Depends(require_user),
+):
     meta = load_upload_meta(upload_id)
     post_type = meta.get("post_type")
     if post_type not in ("image", "video"):
@@ -155,6 +163,6 @@ async def complete_upload(upload_id: str = Form(...), tags: str = Form("")):
 
 
 @router.delete("/upload/{upload_id}")
-async def abort_upload(upload_id: str):
+async def abort_upload(upload_id: str, _: AuthUser = Depends(require_user)):
     cleanup_upload(upload_id)
     return {"detail": "Upload session removed"}

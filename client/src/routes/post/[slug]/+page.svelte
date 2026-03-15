@@ -7,6 +7,8 @@
 	import { searchQuery } from '$lib/components/stores';
 	import TagInput from '$lib/components/TagInput.svelte';
 	import type { TagInterface } from '$lib/types/tag';
+	import { authClient } from '$lib/auth-client';
+	import { canAdmin, canModerate } from '$lib/roles';
 
 	let post: PostInterface | undefined = $state();
 	let allTags: TagInterface[] = $state([]);
@@ -25,6 +27,10 @@
 
 	let nextPostId: number | null = $state(null);
 	let prevPostId: number | null = $state(null);
+	const session = authClient.useSession();
+	const role = $derived($session?.data?.user?.role ?? 'user');
+	const canEditPostTags = $derived(canModerate(role));
+	const canDeletePost = $derived(canAdmin(role));
 
 	const slug = $derived(page.params.slug ?? '');
 	const mediaExt = $derived(post?.media_ext || (post?.type === 'video' ? 'mp4' : 'png'));
@@ -120,6 +126,7 @@
 	}
 
 	function startEditTags() {
+		if (!canEditPostTags) return;
 		tagEditError = undefined;
 		tagEditSuccess = undefined;
 		editedTags = [...(post?.tags ?? [])];
@@ -188,6 +195,7 @@
 	}
 
 	async function saveTags() {
+		if (!canEditPostTags) return;
 		if (!post) return;
 
 		tagEditError = undefined;
@@ -223,6 +231,7 @@
 	}
 
 	async function deletePost() {
+		if (!canDeletePost) return;
 		if (!post || !confirm('Are you sure you want to delete this post? This cannot be undone.'))
 			return;
 
@@ -309,17 +318,19 @@
 					</div>
 				</button>
 			</a>
-			<button
-				type="button"
-				disabled={isDeleting}
-				class="mt-2 flex w-full items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-center text-red-400 transition-colors hover:cursor-pointer hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-				onclick={deletePost}
-			>
-				<div class="flex w-full flex-row justify-between gap-2">
-					{isDeleting ? 'Deleting...' : 'Delete Post'}
-					<X size={20} />
-				</div>
-			</button>
+			{#if canDeletePost}
+				<button
+					type="button"
+					disabled={isDeleting}
+					class="mt-2 flex w-full items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-center text-red-400 transition-colors hover:cursor-pointer hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+					onclick={deletePost}
+				>
+					<div class="flex w-full flex-row justify-between gap-2">
+						{isDeleting ? 'Deleting...' : 'Delete Post'}
+						<X size={20} />
+					</div>
+				</button>
+			{/if}
 			<div class="mt-2 grid w-full grid-cols-2 gap-2">
 				<div class="rounded-lg border border-container-text/15 bg-container px-3 py-2 text-center">
 					<div class="text-xl font-semibold tabular-nums">{post.score}</div>
@@ -356,7 +367,7 @@
 				<p class="mt-2 rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{tagEditError}</p>
 			{/if}
 
-			{#if isEditingTags}
+			{#if isEditingTags && canEditPostTags}
 				<div class="mt-3 flex flex-col gap-2">
 					<span class="text-xs tracking-wide uppercase opacity-70">Add Tag</span>
 					<TagInput
@@ -412,13 +423,15 @@
 					</div>
 				</div>
 			{:else}
-				<button
-					type="button"
-					class="mt-3 w-full rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
-					onclick={startEditTags}
-				>
-					Edit Tags
-				</button>
+				{#if canEditPostTags}
+					<button
+						type="button"
+						class="mt-3 w-full rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
+						onclick={startEditTags}
+					>
+						Edit Tags
+					</button>
+				{/if}
 
 				{#each getGroupedTags(post?.tags ?? []) as { label, color, tags } (label)}
 					<div class="mt-3">

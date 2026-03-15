@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from api.authz import AuthUser, require_admin, require_moderator
 from api.db import get_conn
 from api.schemas import CreateCategoryRequest, UpdateCategoryRequest
 
@@ -16,7 +17,7 @@ def get_categories():
 
 
 @router.post("/categories")
-def create_category(req: CreateCategoryRequest):
+def create_category(req: CreateCategoryRequest, _: AuthUser = Depends(require_moderator)):
     label = req.label.strip().lower()
     color = req.color.strip()
 
@@ -50,7 +51,11 @@ def create_category(req: CreateCategoryRequest):
 
 
 @router.put("/category/{category_label}")
-def update_category(category_label: str, req: UpdateCategoryRequest):
+def update_category(
+    category_label: str,
+    req: UpdateCategoryRequest,
+    _: AuthUser = Depends(require_moderator),
+):
     old_label = category_label.strip().lower()
     new_label = req.label.strip().lower()
     color = req.color.strip()
@@ -91,7 +96,7 @@ def update_category(category_label: str, req: UpdateCategoryRequest):
 
 
 @router.put("/category/{category_label}/default")
-def set_default_category(category_label: str):
+def set_default_category(category_label: str, _: AuthUser = Depends(require_admin)):
     label = category_label.strip().lower()
 
     with get_conn() as conn:

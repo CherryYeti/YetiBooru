@@ -57,3 +57,22 @@ class UpdateCategoryRequest(BaseModel):
 
 class UpdatePostTagsRequest(BaseModel):
     tag_labels: list[str]
+
+
+class UserInfo(BaseModel):
+    id: str
+    name: str
+    email: str
+    role: Literal["owner", "admin", "moderator", "user"]
+    banned: bool
+    ban_reason: str | None = None
+    ban_expires: str | None = None
+
+
+class UpdateUserRoleRequest(BaseModel):
+    role: Literal["owner", "admin", "moderator", "user"]
+
+
+class UpdateUserBanRequest(BaseModel):
+    banned: bool
+    reason: str | None = None

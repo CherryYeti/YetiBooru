@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import type { TagInterface, CategoryInterface } from '$lib/types/tag';
 	import { authClient } from '$lib/auth-client';
+	import { canModerate } from '$lib/roles';
 
 	let value = $state('');
 	let tags: TagInterface[] | undefined = $state();
@@ -26,6 +27,8 @@
 	let isCreating = $state(false);
 
 	const session = authClient.useSession();
+	const role = $derived($session?.data?.user?.role ?? 'user');
+	const canManageTags = $derived(canModerate(role));
 
 	isLoading = true;
 	error = undefined;
@@ -120,7 +123,7 @@
 				class="h-11 w-full rounded-lg border border-container-text/15 bg-container px-4 py-2 text-lg outline-none"
 			/>
 
-			{#if $session?.data}
+			{#if canManageTags}
 				<button
 					type="button"
 					class="h-11 shrink-0 rounded-lg border border-container-text/15 bg-container px-4 py-2 whitespace-nowrap text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
@@ -131,7 +134,7 @@
 			{/if}
 		</div>
 
-		{#if showCreateForm}
+		{#if showCreateForm && canManageTags}
 			<form
 				onsubmit={createTag}
 				class="flex w-full max-w-xl flex-col gap-4 rounded-xl border border-container-text/15 bg-container p-6"

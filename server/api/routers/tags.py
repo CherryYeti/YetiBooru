@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from api.authz import AuthUser, require_admin, require_moderator
 from api.db import get_conn
 from api.schemas import Category, CreateTagRequest, Tag, UpdateImplicationsRequest, UpdateTagRequest
 from api.services import get_default_category_id, get_implications
@@ -39,7 +40,7 @@ def search_tags(query: str = ""):
 
 
 @router.post("/tags/")
-def create_tag(req: CreateTagRequest):
+def create_tag(req: CreateTagRequest, _: AuthUser = Depends(require_moderator)):
     label = req.label.strip().lower()
     if not label:
         raise HTTPException(status_code=400, detail="Tag label cannot be empty")
@@ -101,7 +102,11 @@ def get_tag_implications(tag: str):
 
 
 @router.put("/tag/{tag}/implications")
-def update_tag_implications(tag: str, req: UpdateImplicationsRequest):
+def update_tag_implications(
+    tag: str,
+    req: UpdateImplicationsRequest,
+    _: AuthUser = Depends(require_moderator),
+):
     with get_conn() as conn:
         parent_row = conn.execute(
             "SELECT id FROM tags WHERE label = %s", (tag,)
@@ -155,7 +160,7 @@ def update_tag_implications(tag: str, req: UpdateImplicationsRequest):
 
 
 @router.put("/tag/{tag}")
-def update_tag(tag: str, req: UpdateTagRequest):
+def update_tag(tag: str, req: UpdateTagRequest, _: AuthUser = Depends(require_moderator)):
     category_label = req.category_label.strip().lower()
     if not category_label:
         raise HTTPException(status_code=400, detail="Category label cannot be empty")
@@ -198,7 +203,7 @@ def update_tag(tag: str, req: UpdateTagRequest):
 
 
 @router.delete("/tag/{tag}")
-def delete_tag(tag: str):
+def delete_tag(tag: str, _: AuthUser = Depends(require_admin)):
     with get_conn() as conn:
         row = conn.execute(
             "SELECT id FROM tags WHERE label = %s", (tag,)

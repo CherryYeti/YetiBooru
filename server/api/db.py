@@ -15,12 +15,48 @@ DB_CONNINFO = (
 pool: ConnectionPool | None = None
 
 
+ALLOWED_ROLES = {"owner", "admin", "moderator", "user"}
+
+
+def _normalize_role(raw_role: str | None) -> str:
+    role = (raw_role or "user").strip().lower()
+    if role == "mod":
+        role = "moderator"
+    if role not in ALLOWED_ROLES:
+        role = "user"
+    return role
+
+
+def _get_owner_emails() -> list[str]:
+    owner_emails_raw = os.environ.get("OWNER_EMAILS", "")
+    if not owner_emails_raw:
+        return []
+    return [email.strip().lower() for email in owner_emails_raw.split(",") if email.strip()]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     del app
     global pool
     pool = ConnectionPool(DB_CONNINFO, min_size=2, max_size=10)
     with pool.connection() as conn:
+        conn.execute("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS \"role\" TEXT NOT NULL DEFAULT 'user'")
+        user_rows = conn.execute("SELECT id, role FROM \"user\"").fetchall()
+        for row in user_rows:
+            normalized_role = _normalize_role(row[1])
+            if normalized_role != row[1]:
+                conn.execute(
+                    "UPDATE \"user\" SET \"role\" = %s WHERE id = %s",
+                    (normalized_role, row[0]),
+                )
+
+        owner_emails = _get_owner_emails()
+        for owner_email in owner_emails:
+            conn.execute(
+                "UPDATE \"user\" SET \"role\" = 'owner' WHERE LOWER(email) = %s",
+                (owner_email,),
+            )
+
         conn.execute("ALTER TABLE categories ADD COLUMN IF NOT EXISTS is_default BOOLEAN NOT NULL DEFAULT FALSE")
         conn.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_ext VARCHAR(10)")
         conn.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMPTZ")

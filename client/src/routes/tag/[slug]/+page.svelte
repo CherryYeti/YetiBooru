@@ -2,7 +2,9 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { X } from 'lucide-svelte';
+	import { authClient } from '$lib/auth-client';
 	import type { CategoryInterface, TagInterface } from '$lib/types/tag';
+	import { canAdmin, canModerate } from '$lib/roles';
 	import TagInput from '$lib/components/TagInput.svelte';
 
 	const slug = $derived(page.params.slug ?? '');
@@ -30,6 +32,11 @@
 	let showDeleteConfirm = $state(false);
 	let isDeleting = $state(false);
 	let deleteError: string | undefined = $state();
+
+	const session = authClient.useSession();
+	const role = $derived($session?.data?.user?.role ?? 'user');
+	const canManageTag = $derived(canModerate(role));
+	const canDeleteTag = $derived(canAdmin(role));
 
 	$effect(() => {
 		if (!slug) return;
@@ -104,6 +111,7 @@
 	}
 
 	async function saveImplications() {
+		if (!canManageTag) return;
 		implicationError = undefined;
 		implicationSuccess = undefined;
 		isSavingImplications = true;
@@ -133,6 +141,7 @@
 
 	async function submit(e: SubmitEvent) {
 		e.preventDefault();
+		if (!canManageTag) return;
 
 		if (!tag) return;
 
@@ -164,6 +173,7 @@
 	}
 
 	async function deleteTag() {
+		if (!canDeleteTag) return;
 		deleteError = undefined;
 		isDeleting = true;
 
@@ -209,6 +219,7 @@
 						name="categories"
 						id="categories"
 						bind:value={selectedCategoryLabel}
+						disabled={!canManageTag}
 						class="rounded-lg border border-container-text/15 bg-container-alt px-4 py-2 text-lg text-white outline-none"
 					>
 						{#each categories as category (category.label)}
@@ -220,7 +231,7 @@
 
 				<button
 					type="submit"
-					disabled={isSavingTag}
+					disabled={isSavingTag || !canManageTag}
 					class="rounded-lg bg-violet-500 px-4 py-2 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{isSavingTag ? 'Saving...' : 'Save'}
@@ -279,6 +290,7 @@
 
 					<button
 						type="button"
+						disabled={!canManageTag}
 						class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
 						onclick={addImplication}
 					>
@@ -288,7 +300,7 @@
 
 				<button
 					type="button"
-					disabled={isSavingImplications}
+					disabled={isSavingImplications || !canManageTag}
 					class="rounded-lg bg-violet-500 px-4 py-2 text-white hover:cursor-pointer hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
 					onclick={saveImplications}
 				>
@@ -297,54 +309,56 @@
 			</div>
 		</div>
 
-		<div class="w-full max-w-5xl rounded-xl border border-red-500/30 bg-container p-6">
-			<h3 class="mb-2 text-2xl font-semibold text-red-400">Danger Zone</h3>
-			<p class="mb-4 text-sm text-container-text">
-				Deleting a tag is permanent. The tag must be removed from all posts before it can be
-				deleted.
-			</p>
+		{#if canDeleteTag}
+			<div class="w-full max-w-5xl rounded-xl border border-red-500/30 bg-container p-6">
+				<h3 class="mb-2 text-2xl font-semibold text-red-400">Danger Zone</h3>
+				<p class="mb-4 text-sm text-container-text">
+					Deleting a tag is permanent. The tag must be removed from all posts before it can be
+					deleted.
+				</p>
 
-			{#if deleteError}
-				<p class="mb-4 rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{deleteError}</p>
-			{/if}
+				{#if deleteError}
+					<p class="mb-4 rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{deleteError}</p>
+				{/if}
 
-			{#if showDeleteConfirm}
-				<div class="flex flex-col gap-3 rounded-lg bg-red-500/10 p-4">
-					<p class="text-sm text-red-300">
-						Are you sure you want to delete <strong style="color:{tag.category.color}"
-							>{slug}</strong
-						>? This action cannot be undone.
-					</p>
-					<div class="flex gap-2">
-						<button
-							type="button"
-							disabled={isDeleting}
-							class="rounded-lg bg-red-500 px-4 py-2 text-white hover:cursor-pointer hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
-							onclick={deleteTag}
-						>
-							{isDeleting ? 'Deleting...' : 'Yes, Delete Tag'}
-						</button>
-						<button
-							type="button"
-							class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
-							onclick={() => {
-								showDeleteConfirm = false;
-								deleteError = undefined;
-							}}
-						>
-							Cancel
-						</button>
+				{#if showDeleteConfirm}
+					<div class="flex flex-col gap-3 rounded-lg bg-red-500/10 p-4">
+						<p class="text-sm text-red-300">
+							Are you sure you want to delete <strong style="color:{tag.category.color}"
+								>{slug}</strong
+							>? This action cannot be undone.
+						</p>
+						<div class="flex gap-2">
+							<button
+								type="button"
+								disabled={isDeleting}
+								class="rounded-lg bg-red-500 px-4 py-2 text-white hover:cursor-pointer hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+								onclick={deleteTag}
+							>
+								{isDeleting ? 'Deleting...' : 'Yes, Delete Tag'}
+							</button>
+							<button
+								type="button"
+								class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
+								onclick={() => {
+									showDeleteConfirm = false;
+									deleteError = undefined;
+								}}
+							>
+								Cancel
+							</button>
+						</div>
 					</div>
-				</div>
-			{:else}
-				<button
-					type="button"
-					class="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-2 text-red-400 transition-colors hover:cursor-pointer hover:bg-red-500/20"
-					onclick={() => (showDeleteConfirm = true)}
-				>
-					Delete Tag
-				</button>
-			{/if}
-		</div>
+				{:else}
+					<button
+						type="button"
+						class="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-2 text-red-400 transition-colors hover:cursor-pointer hover:bg-red-500/20"
+						onclick={() => (showDeleteConfirm = true)}
+					>
+						Delete Tag
+					</button>
+				{/if}
+			</div>
+		{/if}
 	</div>
 {/if}
