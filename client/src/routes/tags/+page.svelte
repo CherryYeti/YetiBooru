@@ -1,18 +1,22 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { tagQuery } from '$lib/components/stores';
-	import TagInput from '$lib/components/TagInput.svelte';
 	import type { TagInterface, CategoryInterface } from '$lib/types/tag';
 	import { authClient } from '$lib/auth-client';
 
-	let value = $derived($tagQuery ?? '');
+	let value = $state('');
 	let tags: TagInterface[] | undefined = $state();
 	let categories: CategoryInterface[] = $state([]);
 	let implications: Record<number, TagInterface[]> = $state({});
 	let isLoading = $state(true);
 	let error: string | undefined = $state();
+
+	let filteredTags = $derived.by(() => {
+		if (!tags) return [];
+		const query = value.trim().toLowerCase();
+		if (!query) return tags;
+		return tags.filter((tag) => tag.label.toLowerCase().includes(query));
+	});
 
 	// Create tag form state
 	let showCreateForm = $state(false);
@@ -28,14 +32,7 @@
 
 	$effect(() => {
 		const q = (page.url.searchParams.get('q') ?? '').trim();
-
-		if (q.length > 0) {
-			const normalized = q.replace(/\s+/g, '+');
-			tagQuery.set(normalized);
-			value = normalized;
-		} else {
-			value = $tagQuery ?? '';
-		}
+		value = q.length > 0 ? q.replace(/\+/g, ' ') : '';
 
 		(async () => {
 			try {
@@ -69,17 +66,6 @@
 			}
 		})();
 	});
-
-	function doSearch() {
-		const result = value.trim().replace(/\s+/g, '+');
-		tagQuery.set(result);
-		goto(resolve(`/tags/?q=${result}`));
-	}
-
-	function submit(e: SubmitEvent) {
-		e.preventDefault();
-		doSearch();
-	}
 
 	async function createTag(e: SubmitEvent) {
 		e.preventDefault();
@@ -127,29 +113,23 @@
 	<p class="error">Error: {error}</p>
 {:else if tags}
 	<div class="flex flex-col items-center justify-center gap-8 pt-8">
-		<form onsubmit={submit} class="flex flex-row items-center justify-center gap-2">
-			<TagInput
+		<div class="flex w-full max-w-5xl flex-row items-stretch justify-center gap-2">
+			<input
 				bind:value
-				placeholder="Search for tags"
-				allTags={tags}
-				multiTag={false}
-				onsubmit={doSearch}
+				placeholder="Filter tags by name"
+				class="h-11 w-full rounded-lg border border-container-text/15 bg-container px-4 py-2 text-lg outline-none"
 			/>
-
-			<button type="submit" class="rounded-lg bg-violet-500 px-4 py-2 hover:cursor-pointer"
-				>Search</button
-			>
 
 			{#if $session?.data}
 				<button
 					type="button"
-					class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
+					class="h-11 shrink-0 rounded-lg border border-container-text/15 bg-container px-4 py-2 whitespace-nowrap text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
 					onclick={() => (showCreateForm = !showCreateForm)}
 				>
 					{showCreateForm ? 'Cancel' : 'Create Tag'}
 				</button>
 			{/if}
-		</form>
+		</div>
 
 		{#if showCreateForm}
 			<form
@@ -197,7 +177,7 @@
 			</form>
 		{/if}
 
-		{#if tags.length === 0}
+		{#if filteredTags.length === 0}
 			<p class="text-container-text/50">No tags found.</p>
 		{:else}
 			<div class="w-full max-w-5xl overflow-hidden rounded-xl border border-container-text/15">
@@ -211,7 +191,7 @@
 						</tr>
 					</thead>
 					<tbody>
-						{#each tags as tag (tag.id)}
+						{#each filteredTags as tag (tag.id)}
 							<tr class="bg-container text-container-text transition-colors hover:bg-container-alt">
 								<td
 									class="border-b border-container-text/15 px-4 py-2"
