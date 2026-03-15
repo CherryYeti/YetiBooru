@@ -25,6 +25,7 @@ async def lifespan(app: FastAPI):
     global pool
     pool = ConnectionPool(DB_CONNINFO, min_size=2, max_size=10)
     with pool.connection() as conn:
+        conn.execute("ALTER TABLE categories ADD COLUMN IF NOT EXISTS is_default BOOLEAN NOT NULL DEFAULT FALSE")
         conn.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_ext VARCHAR(10)")
         conn.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMPTZ")
         conn.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS uploader_name TEXT")
@@ -47,6 +48,27 @@ async def lifespan(app: FastAPI):
         )
         conn.execute("ALTER TABLE posts ALTER COLUMN uploaded_at SET DEFAULT CURRENT_TIMESTAMP")
         conn.execute("ALTER TABLE posts ALTER COLUMN uploaded_at SET NOT NULL")
+
+        default_rows = conn.execute(
+            "SELECT id FROM categories WHERE is_default = TRUE ORDER BY id ASC"
+        ).fetchall()
+        if len(default_rows) == 0:
+            preferred = conn.execute(
+                "SELECT id FROM categories WHERE label = 'general' ORDER BY id ASC LIMIT 1"
+            ).fetchone()
+            if not preferred:
+                preferred = conn.execute(
+                    "SELECT id FROM categories ORDER BY id ASC LIMIT 1"
+                ).fetchone()
+            if preferred:
+                conn.execute(
+                    "UPDATE categories SET is_default = TRUE WHERE id = %s",
+                    (preferred[0],),
+                )
+        elif len(default_rows) > 1:
+            keep_id = default_rows[0][0]
+            conn.execute("UPDATE categories SET is_default = FALSE WHERE id <> %s", (keep_id,))
+            conn.execute("UPDATE categories SET is_default = TRUE WHERE id = %s", (keep_id,))
         conn.commit()
     yield
     pool.close()
@@ -84,7 +106,7 @@ class Post:
 
 class CreateTagRequest(BaseModel):
     label: str
-    category_id: int
+    category_id: int | None = None
 
 class UpdateImplicationsRequest(BaseModel):
     implied_tag_labels: list[str]
@@ -275,14 +297,10 @@ def _store_post_and_tags(
             "SELECT id FROM tags WHERE label = %s", (label,)
         ).fetchone()
         if not tag_row:
-            default_cat = conn.execute(
-                "SELECT id FROM categories ORDER BY id DESC LIMIT 1"
-            ).fetchone()
-            if not default_cat:
-                raise HTTPException(status_code=500, detail="No categories exist")
+            default_category_id = _get_default_category_id(conn)
             tag_row = conn.execute(
                 "INSERT INTO tags (label, category_id, count) VALUES (%s, %s, 0) RETURNING id",
-                (label, default_cat[0]),
+                (label, default_category_id),
             ).fetchone()
         conn.execute(
             "INSERT INTO post_tags (post_id, tag_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
@@ -294,6 +312,23 @@ def _store_post_and_tags(
         )
 
     return post_id
+
+
+def _get_default_category_id(conn) -> int:
+    default_row = conn.execute(
+        "SELECT id FROM categories WHERE is_default = TRUE ORDER BY id ASC LIMIT 1"
+    ).fetchone()
+    if default_row:
+        return default_row[0]
+
+    fallback_row = conn.execute(
+        "SELECT id FROM categories ORDER BY id ASC LIMIT 1"
+    ).fetchone()
+    if not fallback_row:
+        raise HTTPException(status_code=500, detail="No categories exist")
+
+    conn.execute("UPDATE categories SET is_default = TRUE WHERE id = %s", (fallback_row[0],))
+    return fallback_row[0]
 
 
 def _build_tags_for_post(conn, post_id: int) -> list[Tag]:
@@ -463,8 +498,9 @@ def create_tag(req: CreateTagRequest):
         raise HTTPException(status_code=400, detail="Tag label cannot be empty")
 
     with _get_conn() as conn:
+        category_id = req.category_id if req.category_id is not None else _get_default_category_id(conn)
         cat_row = conn.execute(
-            "SELECT id, label, color FROM categories WHERE id = %s", (req.category_id,)
+            "SELECT id, label, color FROM categories WHERE id = %s", (category_id,)
         ).fetchone()
         if not cat_row:
             raise HTTPException(status_code=400, detail="Category not found")
@@ -477,7 +513,7 @@ def create_tag(req: CreateTagRequest):
 
         row = conn.execute(
             "INSERT INTO tags (label, category_id, count) VALUES (%s, %s, 0) RETURNING id",
-            (label, req.category_id),
+            (label, category_id),
         ).fetchone()
         conn.commit()
 
@@ -616,9 +652,9 @@ def update_tag(tag: str, req: UpdateTagRequest):
 def get_categories():
     with _get_conn() as conn:
         rows = conn.execute(
-            "SELECT id, label, color FROM categories ORDER BY id"
+            "SELECT id, label, color, is_default FROM categories ORDER BY is_default DESC, id ASC"
         ).fetchall()
-        return [{"id": r[0], "label": r[1], "color": r[2]} for r in rows]
+        return [{"id": r[0], "label": r[1], "color": r[2], "is_default": r[3]} for r in rows]
 
 
 @app.post("/categories")
@@ -632,6 +668,11 @@ def create_category(req: CreateCategoryRequest):
         raise HTTPException(status_code=400, detail="Category color cannot be empty")
 
     with _get_conn() as conn:
+        has_default = conn.execute(
+            "SELECT id FROM categories WHERE is_default = TRUE ORDER BY id ASC LIMIT 1"
+        ).fetchone()
+        should_be_default = has_default is None
+
         existing = conn.execute(
             "SELECT id FROM categories WHERE label = %s", (label,)
         ).fetchone()
@@ -640,14 +681,14 @@ def create_category(req: CreateCategoryRequest):
 
         row = conn.execute(
             """
-            INSERT INTO categories (label, color)
-            VALUES (%s, %s)
-            RETURNING id, label, color
+            INSERT INTO categories (label, color, is_default)
+            VALUES (%s, %s, %s)
+            RETURNING id, label, color, is_default
             """,
-            (label, color),
+            (label, color, should_be_default),
         ).fetchone()
         conn.commit()
-        return {"id": row[0], "label": row[1], "color": row[2]}
+        return {"id": row[0], "label": row[1], "color": row[2], "is_default": row[3]}
 
 
 @app.put("/category/{category_label}")
@@ -682,13 +723,40 @@ def update_category(category_label: str, req: UpdateCategoryRequest):
             UPDATE categories
             SET label = %s, color = %s
             WHERE id = %s
-            RETURNING id, label, color
+            RETURNING id, label, color, is_default
             """,
             (new_label, color, category_id),
         ).fetchone()
         conn.commit()
 
-        return {"id": row[0], "label": row[1], "color": row[2]}
+        return {"id": row[0], "label": row[1], "color": row[2], "is_default": row[3]}
+
+
+@app.put("/category/{category_label}/default")
+def set_default_category(category_label: str):
+    label = category_label.strip().lower()
+
+    with _get_conn() as conn:
+        existing = conn.execute(
+            "SELECT id FROM categories WHERE label = %s", (label,)
+        ).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Category not found")
+
+        category_id = existing[0]
+        conn.execute("UPDATE categories SET is_default = FALSE")
+        row = conn.execute(
+            """
+            UPDATE categories
+            SET is_default = TRUE
+            WHERE id = %s
+            RETURNING id, label, color, is_default
+            """,
+            (category_id,),
+        ).fetchone()
+        conn.commit()
+
+        return {"id": row[0], "label": row[1], "color": row[2], "is_default": row[3]}
 
 
 @app.get("/posts/count")
@@ -735,14 +803,10 @@ def update_post_tags(post_id: int, req: UpdatePostTagsRequest):
                 "SELECT id FROM tags WHERE label = %s", (label,)
             ).fetchone()
             if not row:
-                default_cat = conn.execute(
-                    "SELECT id FROM categories ORDER BY id DESC LIMIT 1"
-                ).fetchone()
-                if not default_cat:
-                    raise HTTPException(status_code=500, detail="No categories exist")
+                default_category_id = _get_default_category_id(conn)
                 row = conn.execute(
                     "INSERT INTO tags (label, category_id, count) VALUES (%s, %s, 0) RETURNING id",
-                    (label, default_cat[0]),
+                    (label, default_category_id),
                 ).fetchone()
             tag_ids.append(row[0])
 

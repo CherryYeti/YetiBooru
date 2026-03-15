@@ -45,7 +45,7 @@
 				tags = (await tagsRes.json()) as TagInterface[];
 				categories = (await catsRes.json()) as CategoryInterface[];
 				if (categories.length > 0 && newTagCategoryId === 0) {
-					newTagCategoryId = categories[0]?.id ?? 0;
+					newTagCategoryId = categories.find((c) => c.is_default)?.id ?? categories[0]?.id ?? 0;
 				}
 
 				// Fetch implications for each tag

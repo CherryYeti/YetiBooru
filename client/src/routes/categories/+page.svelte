@@ -21,6 +21,8 @@
 	let editError: string | undefined = $state();
 	let editSuccess: string | undefined = $state();
 	let isSavingEdit = $state(false);
+	let defaultError: string | undefined = $state();
+	let isSettingDefault = $state(false);
 
 	async function loadCategories() {
 		isLoading = true;
@@ -46,6 +48,7 @@
 		editColor = category.color;
 		editError = undefined;
 		editSuccess = undefined;
+		defaultError = undefined;
 	}
 
 	function cancelEdit() {
@@ -53,6 +56,31 @@
 		editLabel = '';
 		editColor = '';
 		editError = undefined;
+	}
+
+	async function setDefaultCategory(label: string) {
+		defaultError = undefined;
+		isSettingDefault = true;
+		try {
+			const response = await fetch(`/api/category/${encodeURIComponent(label)}/default`, {
+				method: 'PUT'
+			});
+
+			if (!response.ok) {
+				const data = await response.json();
+				throw new Error(data.detail || `HTTP error! Status: ${response.status}`);
+			}
+
+			const updated = (await response.json()) as CategoryInterface;
+			categories = categories.map((c) => ({
+				...c,
+				is_default: c.id === updated.id
+			}));
+		} catch (err) {
+			defaultError = err instanceof Error ? err.message : 'An error occurred';
+		} finally {
+			isSettingDefault = false;
+		}
 	}
 
 	async function createCategory(e: SubmitEvent) {
@@ -179,6 +207,9 @@
 			{#if editSuccess}
 				<p class="mb-4 rounded-lg bg-green-500/20 px-4 py-2 text-green-400">{editSuccess}</p>
 			{/if}
+			{#if defaultError}
+				<p class="mb-4 rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{defaultError}</p>
+			{/if}
 
 			{#if showCreateForm}
 				<form
@@ -276,15 +307,33 @@
 										<p class="text-2xl font-semibold" style="color:{category.color}">
 											{category.label}
 										</p>
+										{#if category.is_default}
+											<span
+												class="rounded-full border border-green-400/40 bg-green-500/15 px-2 py-0.5 text-xs text-green-300"
+												>default</span
+											>
+										{/if}
 									</div>
 									{#if $session?.data}
-										<button
-											type="button"
-											class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container"
-											onclick={() => startEdit(category)}
-										>
-											Edit
-										</button>
+										<div class="flex gap-2">
+											{#if !category.is_default}
+												<button
+													type="button"
+													disabled={isSettingDefault}
+													class="rounded-lg border border-green-400/30 bg-green-500/10 px-4 py-2 text-green-300 transition-colors hover:cursor-pointer hover:bg-green-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+													onclick={() => setDefaultCategory(category.label)}
+												>
+													Set Default
+												</button>
+											{/if}
+											<button
+												type="button"
+												class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container"
+												onclick={() => startEdit(category)}
+											>
+												Edit
+											</button>
+										</div>
 									{/if}
 								</div>
 							{/if}

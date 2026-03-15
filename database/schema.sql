@@ -2,7 +2,8 @@ CREATE TABLE
   categories (
     id SERIAL PRIMARY KEY,
     label VARCHAR(100) NOT NULL UNIQUE,
-    color VARCHAR(100) NOT NULL
+    color VARCHAR(100) NOT NULL,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE
   );
 
 CREATE TABLE

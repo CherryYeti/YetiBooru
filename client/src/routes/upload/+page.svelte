@@ -82,6 +82,60 @@
 		fileInput?.click();
 	}
 
+	function parseTagSet(value: string): Set<string> {
+		return new Set(
+			value
+				.split(/\s+/)
+				.map((part) => part.trim().toLowerCase())
+				.filter(Boolean)
+		);
+	}
+
+	function parseTagSetAfterSelection(value: string, selectedLabel: string): Set<string> {
+		const normalizedSelected = selectedLabel.trim().toLowerCase();
+		const parts = value
+			.split(/\s+/)
+			.map((part) => part.trim().toLowerCase())
+			.filter(Boolean);
+
+		if (!normalizedSelected) return new Set(parts);
+
+		if (/\s$/.test(value) || parts.length === 0) {
+			parts.push(normalizedSelected);
+		} else {
+			parts[parts.length - 1] = normalizedSelected;
+		}
+
+		return new Set(parts);
+	}
+
+	function updateTagValue(tags: Set<string>) {
+		tagValue = `${Array.from(tags).join(' ')}${tags.size > 0 ? ' ' : ''}`;
+	}
+
+	async function applyImplications(selectedTag: TagInterface) {
+		if (selectedTag.id < 0) return;
+		try {
+			const res = await fetch(`/api/tag/${encodeURIComponent(selectedTag.label)}/implications`);
+			if (!res.ok) return;
+
+			const impliedTags = (await res.json()) as TagInterface[];
+			const tagSet = parseTagSet(tagValue);
+			for (const implied of impliedTags) {
+				tagSet.add(implied.label.toLowerCase());
+			}
+			updateTagValue(tagSet);
+		} catch {
+			/* silently ignore */
+		}
+	}
+
+	async function onTagSelect(selectedTag: TagInterface) {
+		const tagSet = parseTagSetAfterSelection(tagValue, selectedTag.label);
+		updateTagValue(tagSet);
+		await applyImplications(selectedTag);
+	}
+
 	async function upload() {
 		if (items.length === 0) return;
 		uploading = true;
@@ -249,6 +303,7 @@
 				placeholder="e.g. landscape sky photo"
 				{allTags}
 				multiTag={true}
+				onselect={onTagSelect}
 			/>
 		</div>
 

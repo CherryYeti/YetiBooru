@@ -8,4 +8,5 @@ export interface CategoryInterface {
 	id?: number;
 	label: string;
 	color: string;
+	is_default?: boolean;
 }
