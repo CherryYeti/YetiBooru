@@ -11,7 +11,9 @@ services:
       - api
 
   client:
-    build: ./client
+    build:
+      context: ./client
+      target: dev
     environment:
       - ORIGIN=http://localhost:8965
       - BETTER_AUTH_SECRET=BHR4COIdaOna4kgIlbeOheAhn6gJNOOq # Example hash
@@ -21,18 +23,11 @@ services:
       - DB_USER=booru
       - DB_PASSWORD=booru
       - DB_NAME=booru
+    volumes:
+      - ./client:/app
+      - /app/node_modules
     expose:
       - "3000"
-    develop:
-      watch:
-        - path: ./client
-          action: rebuild
-          ignore:
-            - node_modules/
-            - dist/
-            - build/
-            - .next/
-            - .git/
 
   api:
     build: ./server
