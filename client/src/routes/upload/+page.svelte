@@ -196,7 +196,7 @@
 
 	<button
 		type="button"
-		class="w-full max-w-3xl rounded-lg border-2 border-dashed border-neutral-600 bg-container py-20 text-container-text transition-colors hover:border-neutral-400 hover:text-white focus:border-neutral-400 focus:outline-none"
+		class="w-full max-w-3xl rounded-lg border-2 border-dashed border-neutral-600 bg-container py-20 text-container-text transition-colors hover:cursor-pointer hover:border-neutral-400 hover:text-white focus:border-neutral-400 focus:outline-none"
 		onclick={openPicker}
 		ondrop={onDrop}
 		ondragover={onDragOver}
@@ -248,7 +248,7 @@
 			<button
 				type="button"
 				disabled={uploading}
-				class="rounded-lg bg-violet-500 px-12 py-3 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+				class="rounded-lg bg-violet-500 px-12 py-3 font-semibold text-white transition-opacity hover:cursor-pointer hover:opacity-90 disabled:opacity-50"
 				onclick={upload}
 			>
 				{uploading ? 'Uploading...' : `Upload ${items.length} file${items.length > 1 ? 's' : ''}`}
@@ -256,7 +256,7 @@
 			<button
 				type="button"
 				disabled={uploading}
-				class="rounded-lg bg-red-500/80 px-12 py-3 font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+				class="rounded-lg bg-red-500/80 px-12 py-3 font-semibold text-white transition-opacity hover:cursor-pointer hover:opacity-90 disabled:opacity-50"
 				onclick={clear}
 			>
 				Clear all
