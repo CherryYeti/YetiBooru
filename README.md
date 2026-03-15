@@ -5,10 +5,10 @@ Keep in mind that this is extremely alpha software, and it is not meant to be ex
 
 - [x] Handle image/video uploads
 - [x] Handle basic account creation
-- [ ] Handle gif uploads
-- [ ] Test if uploads need chunking
+- [x] Handle gif uploads
+- [x] Test if uploads need chunking
 - [ ] Add admin account/permissions
-  - [ ] Add moderation tools
+- [ ] Add moderation tools
 - [ ] Make API gelbooru/szurubooru compatible?
 
 
