@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import TagInput from '$lib/components/TagInput.svelte';
 	import type { TagInterface } from '$lib/types/tag';
+	import type { PageData } from './$types';
 	import { X } from 'lucide-svelte';
 
 	type MediaKind = 'image' | 'video';
@@ -18,7 +19,10 @@
 	let allTags: TagInterface[] = $state([]);
 	let uploading = $state(false);
 	let error = $state('');
+	let sourceUrl = $state('');
 	const CHUNK_SIZE = 4 * 1024 * 1024;
+
+	let { data }: { data: PageData } = $props();
 
 	$effect(() => {
 		fetch('/api/tags/')
@@ -85,6 +89,7 @@
 
 		try {
 			const tags = tagValue.trim();
+			const normalizedSourceUrl = sourceUrl.trim();
 			let lastId: number | null = null;
 
 			for (const item of items) {
@@ -94,6 +99,8 @@
 					const initForm = new FormData();
 					initForm.append('content_type', item.file.type);
 					initForm.append('filename', item.file.name);
+					if (data.uploader?.name) initForm.append('uploader_name', data.uploader.name);
+					if (normalizedSourceUrl) initForm.append('source_url', normalizedSourceUrl);
 
 					const initRes = await fetch('/api/upload/init', {
 						method: 'POST',
@@ -161,6 +168,7 @@
 
 			clear();
 			tagValue = '';
+			sourceUrl = '';
 
 			if (lastId !== null) {
 				goto(resolve(`/post/${lastId}`));
@@ -241,6 +249,17 @@
 				placeholder="e.g. landscape sky photo"
 				{allTags}
 				multiTag={true}
+			/>
+		</div>
+
+		<div class="flex w-full max-w-3xl flex-col gap-2">
+			<label for="source-url" class="text-sm text-container-text">Source URL (optional)</label>
+			<input
+				id="source-url"
+				type="url"
+				bind:value={sourceUrl}
+				placeholder="https://example.com/original"
+				class="w-full rounded-lg border border-container-text/15 bg-container px-3 py-2 text-container-text transition-colors outline-none focus:border-violet-500"
 			/>
 		</div>
 

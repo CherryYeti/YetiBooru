@@ -18,7 +18,12 @@ CREATE TABLE
     id SERIAL PRIMARY KEY,
     score INTEGER NOT NULL DEFAULT 0,
     type VARCHAR(10) NOT NULL CHECK (type IN ('video', 'image')),
-    media_ext VARCHAR(10)
+    media_ext VARCHAR(10),
+    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    uploader_name TEXT,
+    media_width INTEGER,
+    media_height INTEGER,
+    source_url TEXT
   );
 
 CREATE TABLE

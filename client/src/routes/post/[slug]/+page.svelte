@@ -27,8 +27,18 @@
 	let prevPostId: number | null = $state(null);
 
 	const slug = $derived(page.params.slug ?? '');
-	const slugNum = $derived(Number(slug));
 	const mediaExt = $derived(post?.media_ext || (post?.type === 'video' ? 'mp4' : 'png'));
+	const uploadedAtDisplay = $derived(
+		post?.uploaded_at
+			? new Date(post.uploaded_at).toLocaleString(undefined, {
+					dateStyle: 'medium',
+					timeStyle: 'long'
+				})
+			: '-'
+	);
+	const dimensionsDisplay = $derived(
+		post?.media_width && post?.media_height ? `${post.media_width} x ${post.media_height}` : '-'
+	);
 
 	let value = $derived($searchQuery ?? '');
 
@@ -39,7 +49,7 @@
 	function doSearch() {
 		const result = value.trim().replace(/\s+/g, ' ');
 		searchQuery.set(result);
-		goto(`/posts/?query=${encodeURIComponent(result)}`);
+		goto(`${resolve('/posts')}?query=${encodeURIComponent(result)}`);
 	}
 
 	function submit(e: SubmitEvent) {
@@ -223,7 +233,7 @@
 				const data = await response.json();
 				throw new Error(data.detail || `HTTP error! Status: ${response.status}`);
 			}
-			goto('/posts/');
+			goto(resolve('/posts/'));
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'An error occurred';
 		} finally {
@@ -273,7 +283,7 @@
 				<button
 					type="button"
 					class="flex w-full items-center justify-center rounded-lg border border-container-text/15 bg-container px-4 py-2 text-center text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt disabled:cursor-not-allowed disabled:opacity-50"
-					onclick={() => goto(`/post/${prevPostId}`)}
+					onclick={() => goto(resolve(`/post/${prevPostId}`))}
 					disabled={prevPostId === null}
 				>
 					<ChevronLeft />
@@ -282,13 +292,13 @@
 				<button
 					type="button"
 					class="flex w-full items-center justify-center rounded-lg border border-container-text/15 bg-container px-4 py-2 text-center text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt disabled:cursor-not-allowed disabled:opacity-50"
-					onclick={() => goto(`/post/${nextPostId}`)}
+					onclick={() => goto(resolve(`/post/${nextPostId}`))}
 					disabled={nextPostId === null}
 				>
 					<ChevronRight />
 				</button>
 			</div>
-			<a href={`/data/media/${slug}.${mediaExt}`} download>
+			<a href={`${resolve('/')}data/media/${slug}.${mediaExt}`} download>
 				<button
 					type="button"
 					class="mt-2 flex w-full items-center justify-center rounded-lg border border-container-text/15 bg-container px-4 py-2 text-center text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
@@ -319,6 +329,23 @@
 				<div class="rounded-lg border border-container-text/15 bg-container px-3 py-2 text-center">
 					<div class="text-xl font-semibold tabular-nums">{post.tags?.length ?? 0}</div>
 					<div class="text-xs opacity-70">Tags</div>
+				</div>
+			</div>
+
+			<div class="mt-2 rounded-lg border border-container-text/15 bg-container px-3 py-2 text-sm">
+				<div class="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
+					<span class="opacity-70">Uploaded</span>
+					<span class="truncate">{uploadedAtDisplay}</span>
+					<span class="opacity-70">Uploader Name</span>
+					<span class="truncate">{post.uploader_name || '-'}</span>
+					<span class="opacity-70">Dimensions</span>
+					<span>{dimensionsDisplay}</span>
+					<span class="opacity-70">Source</span>
+					{#if post.source_url}
+						<span class="truncate text-violet-400">{post.source_url}</span>
+					{:else}
+						<span>-</span>
+					{/if}
 				</div>
 			</div>
 
@@ -404,7 +431,7 @@
 								style="color:{tag.category.color}"
 							>
 								<Tag size={16} />
-								<a href={`/tag/${tag.label}`} class="hover:underline">{tag.label}</a>
+								<a href={resolve(`/tag/${tag.label}`)} class="hover:underline">{tag.label}</a>
 								<p class="text-sm opacity-60">{tag.count}</p>
 							</div>
 						{/each}
