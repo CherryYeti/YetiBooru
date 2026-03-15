@@ -1,4 +1,4 @@
 .github/
 .git
 node_modules/
-server/__pycache__/
+__pycache__/
