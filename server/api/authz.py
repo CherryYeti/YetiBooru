@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Literal
+from urllib.parse import unquote
 
 from fastapi import Depends, HTTPException, Request
 
@@ -55,9 +56,44 @@ def _extract_session_token(request: Request) -> str | None:
     return None
 
 
+def _token_candidates(raw_token: str | None) -> list[str]:
+    if not raw_token:
+        return []
+
+    candidates: list[str] = []
+
+    def _add(value: str | None) -> None:
+        if not value:
+            return
+        value = value.strip()
+        if value and value not in candidates:
+            candidates.append(value)
+
+    _add(raw_token)
+    _add(unquote(raw_token))
+
+    for token in list(candidates):
+        if "." in token:
+            _add(token.split(".", 1)[0])
+        if ":" in token:
+            _add(token.split(":", 1)[0])
+        if "|" in token:
+            _add(token.split("|", 1)[0])
+
+    return candidates
+
+
 def _get_user_from_request(request: Request) -> AuthUser | None:
     token = _extract_session_token(request)
-    if not token:
+    token_candidates = _token_candidates(token)
+
+    if not token_candidates:
+        for cookie_name, cookie_value in request.cookies.items():
+            lowered = cookie_name.lower()
+            if lowered.endswith("session_token") or lowered.endswith("session-token"):
+                token_candidates.extend(_token_candidates(cookie_value))
+
+    if not token_candidates:
         return None
 
     with get_conn() as conn:
@@ -66,11 +102,11 @@ def _get_user_from_request(request: Request) -> AuthUser | None:
             SELECT u.id, u.name, u.email, u.role, COALESCE(u.banned, FALSE)
             FROM session s
             JOIN "user" u ON u.id = s."userId"
-            WHERE s.token = %s
+            WHERE (s.token = ANY(%s::text[]) OR s.id = ANY(%s::text[]))
               AND s."expiresAt" > CURRENT_TIMESTAMP
             LIMIT 1
             """,
-            (token,),
+            (token_candidates, token_candidates),
         ).fetchone()
 
     if not row:
