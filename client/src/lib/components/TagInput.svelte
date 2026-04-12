@@ -85,7 +85,7 @@
 	<input
 		bind:this={inputEl}
 		bind:value
-		class="h-full w-full rounded-lg bg-container px-4 py-2 text-lg outline-none"
+		class="h-full w-full rounded-lg bg-surface0 px-4 py-2 text-lg outline-none"
 		{placeholder}
 		oninput={handleInput}
 		onfocus={handleFocus}
@@ -95,12 +95,12 @@
 
 	{#if showDropdown && filteredSuggestions.length > 0}
 		<div
-			class="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-container-text/15 bg-container-alt shadow-lg"
+			class="absolute top-full right-0 left-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-lg border border-text/15 bg-surface1 shadow-lg"
 		>
 			{#each filteredSuggestions as suggestion (suggestion.id)}
 				<button
 					type="button"
-					class="w-full px-4 py-2 text-left transition-colors hover:cursor-pointer hover:bg-container"
+					class="w-full px-4 py-2 text-left transition-colors hover:cursor-pointer hover:bg-surface0"
 					style="color:{suggestion.category.color}"
 					onmousedown={(event) => handleSuggestionMouseDown(event, suggestion)}
 				>

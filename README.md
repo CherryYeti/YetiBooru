@@ -7,9 +7,13 @@ Keep in mind that this is extremely alpha software, and it is not meant to be ex
 - [x] Handle basic account creation
 - [x] Handle gif uploads
 - [x] Test if uploads need chunking
-- [ ] Add admin account/permissions
+- [x] Add admin account/permissions
 - [ ] Add moderation tools
 - [ ] Make API gelbooru/szurubooru compatible?
+
+Bootstrap notes:
+- Set `OWNER_EMAILS` to a comma-separated list of trusted emails to pin the initial owner account(s).
+- If `OWNER_EMAILS` is empty, the first authenticated user can claim owner access from the admin user screen.
 
 
 ## How to run

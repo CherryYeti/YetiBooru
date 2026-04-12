@@ -256,10 +256,10 @@
 {:else if notFound}
 	<div class="flex flex-col items-center justify-center gap-4 pt-16">
 		<p class="text-2xl font-semibold">Post not found</p>
-		<p class="text-container-text/50">The post you're looking for doesn't exist.</p>
+		<p class="text-text/50">The post you're looking for doesn't exist.</p>
 		<a
 			href={resolve('/')}
-			class="rounded-lg bg-violet-500 px-4 py-2 text-white hover:bg-violet-400"
+			class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:opacity-90"
 		>
 			Go to Home
 		</a>
@@ -281,7 +281,7 @@
 
 					<button
 						type="submit"
-						class="mb-2 w-full rounded-lg bg-violet-500 px-4 py-2 hover:cursor-pointer"
+						class="mb-2 w-full rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90"
 					>
 						Search
 					</button>
@@ -291,7 +291,7 @@
 			<div class="flex flex-row items-center justify-between gap-2">
 				<button
 					type="button"
-					class="flex w-full items-center justify-center rounded-lg border border-container-text/15 bg-container px-4 py-2 text-center text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt disabled:cursor-not-allowed disabled:opacity-50"
+					class="flex w-full items-center justify-center rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-center text-text transition-colors hover:cursor-pointer hover:bg-surface1 disabled:cursor-not-allowed disabled:opacity-50"
 					onclick={() => goto(resolve(`/post/${prevPostId}`))}
 					disabled={prevPostId === null}
 				>
@@ -300,7 +300,7 @@
 
 				<button
 					type="button"
-					class="flex w-full items-center justify-center rounded-lg border border-container-text/15 bg-container px-4 py-2 text-center text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt disabled:cursor-not-allowed disabled:opacity-50"
+					class="flex w-full items-center justify-center rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-center text-text transition-colors hover:cursor-pointer hover:bg-surface1 disabled:cursor-not-allowed disabled:opacity-50"
 					onclick={() => goto(resolve(`/post/${nextPostId}`))}
 					disabled={nextPostId === null}
 				>
@@ -310,7 +310,7 @@
 			<a href={`${resolve('/')}data/media/${slug}.${mediaExt}`} download>
 				<button
 					type="button"
-					class="mt-2 flex w-full items-center justify-center rounded-lg border border-container-text/15 bg-container px-4 py-2 text-center text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
+					class="mt-2 flex w-full items-center justify-center rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-center text-text transition-colors hover:cursor-pointer hover:bg-surface1"
 				>
 					<div class="flex w-full flex-row justify-between gap-2">
 						Download File
@@ -322,7 +322,7 @@
 				<button
 					type="button"
 					disabled={isDeleting}
-					class="mt-2 flex w-full items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-center text-red-400 transition-colors hover:cursor-pointer hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+					class="mt-2 flex w-full items-center justify-center rounded-lg border border-red-500/30 bg-red/10 px-4 py-2 text-center text-red transition-colors hover:cursor-pointer hover:bg-red/20 disabled:cursor-not-allowed disabled:opacity-50"
 					onclick={deletePost}
 				>
 					<div class="flex w-full flex-row justify-between gap-2">
@@ -332,18 +332,18 @@
 				</button>
 			{/if}
 			<div class="mt-2 grid w-full grid-cols-2 gap-2">
-				<div class="rounded-lg border border-container-text/15 bg-container px-3 py-2 text-center">
+				<div class="rounded-lg border border-text/15 bg-surface0 px-3 py-2 text-center">
 					<div class="text-xl font-semibold tabular-nums">{post.score}</div>
 					<div class="text-xs opacity-70">Score</div>
 				</div>
 
-				<div class="rounded-lg border border-container-text/15 bg-container px-3 py-2 text-center">
+				<div class="rounded-lg border border-text/15 bg-surface0 px-3 py-2 text-center">
 					<div class="text-xl font-semibold tabular-nums">{post.tags?.length ?? 0}</div>
 					<div class="text-xs opacity-70">Tags</div>
 				</div>
 			</div>
 
-			<div class="mt-2 rounded-lg border border-container-text/15 bg-container px-3 py-2 text-sm">
+			<div class="mt-2 rounded-lg border border-text/15 bg-surface0 px-3 py-2 text-sm">
 				<div class="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
 					<span class="opacity-70">Uploaded</span>
 					<span class="truncate">{uploadedAtDisplay}</span>
@@ -361,10 +361,10 @@
 			</div>
 
 			{#if tagEditSuccess}
-				<p class="mt-2 rounded-lg bg-green-500/20 px-4 py-2 text-green-400">{tagEditSuccess}</p>
+				<p class="mt-2 rounded-lg bg-green/20 px-4 py-2 text-green">{tagEditSuccess}</p>
 			{/if}
 			{#if tagEditError}
-				<p class="mt-2 rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{tagEditError}</p>
+				<p class="mt-2 rounded-lg bg-red/20 px-4 py-2 text-red">{tagEditError}</p>
 			{/if}
 
 			{#if isEditingTags && canEditPostTags}
@@ -408,14 +408,14 @@
 						<button
 							type="button"
 							disabled={isSavingTags}
-							class="flex-1 rounded-lg bg-violet-500 px-4 py-2 text-white hover:cursor-pointer hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
+							class="flex-1 rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 							onclick={saveTags}
 						>
 							{isSavingTags ? 'Saving...' : 'Save Tags'}
 						</button>
 						<button
 							type="button"
-							class="flex-1 rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
+							class="flex-1 rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-text transition-colors hover:cursor-pointer hover:bg-surface1"
 							onclick={cancelEditTags}
 						>
 							Cancel
@@ -426,7 +426,7 @@
 				{#if canEditPostTags}
 					<button
 						type="button"
-						class="mt-3 w-full rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
+						class="mt-3 w-full rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-text transition-colors hover:cursor-pointer hover:bg-surface1"
 						onclick={startEditTags}
 					>
 						Edit Tags

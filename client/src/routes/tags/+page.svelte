@@ -120,13 +120,13 @@
 			<input
 				bind:value
 				placeholder="Filter tags by name"
-				class="h-11 w-full rounded-lg border border-container-text/15 bg-container px-4 py-2 text-lg outline-none"
+				class="h-11 w-full rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-lg outline-none"
 			/>
 
 			{#if canManageTags}
 				<button
 					type="button"
-					class="h-11 shrink-0 rounded-lg border border-container-text/15 bg-container px-4 py-2 whitespace-nowrap text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
+					class="h-11 shrink-0 rounded-lg border border-text/15 bg-surface0 px-4 py-2 whitespace-nowrap text-text transition-colors hover:cursor-pointer hover:bg-surface1"
 					onclick={() => (showCreateForm = !showCreateForm)}
 				>
 					{showCreateForm ? 'Cancel' : 'Create Tag'}
@@ -137,30 +137,30 @@
 		{#if showCreateForm && canManageTags}
 			<form
 				onsubmit={createTag}
-				class="flex w-full max-w-xl flex-col gap-4 rounded-xl border border-container-text/15 bg-container p-6"
+				class="flex w-full max-w-xl flex-col gap-4 rounded-xl border border-text/15 bg-surface0 p-6"
 			>
 				<h3 class="text-xl font-semibold">Create New Tag</h3>
 
 				{#if createError}
-					<p class="rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{createError}</p>
+					<p class="rounded-lg bg-red/20 px-4 py-2 text-red">{createError}</p>
 				{/if}
 
 				<div class="flex flex-col gap-1">
-					<label for="new-tag-label" class="text-sm text-container-text">Tag Name</label>
+					<label for="new-tag-label" class="text-sm text-text">Tag Name</label>
 					<input
 						id="new-tag-label"
 						bind:value={newTagLabel}
-						class="rounded-lg border border-container-text/15 bg-container-alt px-4 py-2 text-lg outline-none"
+						class="rounded-lg border border-text/15 bg-surface1 px-4 py-2 text-lg outline-none"
 						placeholder="e.g. landscape"
 					/>
 				</div>
 
 				<div class="flex flex-col gap-1">
-					<label for="new-tag-category" class="text-sm text-container-text">Category</label>
+					<label for="new-tag-category" class="text-sm text-text">Category</label>
 					<select
 						id="new-tag-category"
 						bind:value={newTagCategoryId}
-						class="rounded-lg border border-container-text/15 bg-container-alt px-4 py-2 text-lg text-white outline-none"
+						class="rounded-lg border border-text/15 bg-surface1 px-4 py-2 text-lg text-text outline-none"
 					>
 						{#each categories as category, i (category.label)}
 							<option value={category.id ?? i + 1} style="color:{category.color}">
@@ -173,7 +173,7 @@
 				<button
 					type="submit"
 					disabled={isCreating}
-					class="rounded-lg bg-violet-500 px-4 py-2 text-white hover:cursor-pointer hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
+					class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{isCreating ? 'Creating...' : 'Create'}
 				</button>
@@ -181,23 +181,23 @@
 		{/if}
 
 		{#if filteredTags.length === 0}
-			<p class="text-container-text/50">No tags found.</p>
+			<p class="text-text/50">No tags found.</p>
 		{:else}
-			<div class="w-full max-w-5xl overflow-hidden rounded-xl border border-container-text/15">
+			<div class="w-full max-w-5xl overflow-hidden rounded-xl border border-text/15">
 				<table class="w-full">
 					<thead>
-						<tr class="bg-container text-container-text">
-							<th class="border-b border-container-text/15 px-4 py-2 text-left">Name</th>
-							<th class="border-b border-container-text/15 px-4 py-2 text-left">Count</th>
-							<th class="border-b border-container-text/15 px-4 py-2 text-left">Category</th>
-							<th class="border-b border-container-text/15 px-4 py-2 text-left">Implications</th>
+						<tr class="bg-surface0 text-text">
+							<th class="border-b border-text/15 px-4 py-2 text-left">Name</th>
+							<th class="border-b border-text/15 px-4 py-2 text-left">Count</th>
+							<th class="border-b border-text/15 px-4 py-2 text-left">Category</th>
+							<th class="border-b border-text/15 px-4 py-2 text-left">Implications</th>
 						</tr>
 					</thead>
 					<tbody>
 						{#each filteredTags as tag (tag.id)}
-							<tr class="bg-container text-container-text transition-colors hover:bg-container-alt">
+							<tr class="bg-surface0 text-text transition-colors hover:bg-surface1">
 								<td
-									class="border-b border-container-text/15 px-4 py-2"
+									class="border-b border-text/15 px-4 py-2"
 									style="color: {tag.category.color};"
 								>
 									<a
@@ -207,9 +207,9 @@
 										{tag.label}
 									</a>
 								</td>
-								<td class="border-b border-container-text/15 px-4 py-2">{tag.count}</td>
-								<td class="border-b border-container-text/15 px-4 py-2">{tag.category.label}</td>
-								<td class="border-b border-container-text/15 px-4 py-2">
+								<td class="border-b border-text/15 px-4 py-2">{tag.count}</td>
+								<td class="border-b border-text/15 px-4 py-2">{tag.category.label}</td>
+								<td class="border-b border-text/15 px-4 py-2">
 									{#if implications[tag.id]?.length}
 										{#each implications[tag.id] as impl, i (impl.id)}
 											<a
@@ -219,7 +219,7 @@
 											>{#if i < implications[tag.id].length - 1},&nbsp;{/if}
 										{/each}
 									{:else}
-										<span class="text-container-text/30">—</span>
+										<span class="text-text/30">—</span>
 									{/if}
 								</td>
 							</tr>

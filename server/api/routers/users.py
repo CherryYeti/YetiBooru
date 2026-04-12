@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.authz import AuthUser, require_admin, require_moderator, require_user
-from api.db import get_conn
+from api.db import get_conn, get_owner_count, get_owner_emails, sync_bootstrap_owner_roles
 from api.schemas import UpdateUserBanRequest, UpdateUserRoleRequest, UserInfo
 
 router = APIRouter()
@@ -38,26 +38,78 @@ def _to_user_info(row) -> UserInfo:
 
 
 def _get_owner_count(conn) -> int:
-    row = conn.execute(
-        "SELECT COUNT(*) FROM \"user\" WHERE LOWER(role) = 'owner'"
+    return get_owner_count(conn)
+
+
+def _get_current_user_row(conn, user_id: str):
+    return conn.execute(
+        """
+        SELECT id, name, email, role, COALESCE(banned, FALSE), "banReason", "createdAt", "banExpires"
+        FROM "user"
+        WHERE id = %s
+        """,
+        (user_id,),
     ).fetchone()
-    return int(row[0] if row else 0)
 
 
 @router.get("/users/me")
 def get_me(user: AuthUser = Depends(require_user)):
     with get_conn() as conn:
-        row = conn.execute(
-            """
-            SELECT id, name, email, role, COALESCE(banned, FALSE), "banReason", "createdAt", "banExpires"
-            FROM "user"
-            WHERE id = %s
-            """,
-            (user.id,),
-        ).fetchone()
+        sync_bootstrap_owner_roles(conn, user.email)
+        row = _get_current_user_row(conn, user.id)
         if not row:
             raise HTTPException(status_code=404, detail="User not found")
         return _to_user_info(row)
+
+
+@router.get("/users/bootstrap")
+def get_bootstrap_status(user: AuthUser = Depends(require_user)):
+    with get_conn() as conn:
+        sync_bootstrap_owner_roles(conn, user.email)
+        owner_count = _get_owner_count(conn)
+        owner_emails = get_owner_emails()
+        row = _get_current_user_row(conn, user.id)
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        current_role = _normalize_role(row[3])
+        can_bootstrap = current_role != "owner" and (
+            (owner_emails and user.email.lower() in owner_emails) or (not owner_emails and owner_count == 0)
+        )
+
+        return {
+            "currentUser": _to_user_info(row),
+            "ownerCount": owner_count,
+            "ownerEmails": owner_emails,
+            "canBootstrap": can_bootstrap,
+            "bootstrapRequired": owner_count == 0,
+        }
+
+
+@router.post("/users/bootstrap")
+def bootstrap_owner(user: AuthUser = Depends(require_user)):
+    with get_conn() as conn:
+        owner_emails = get_owner_emails()
+        owner_count = _get_owner_count(conn)
+        email = user.email.lower()
+
+        if owner_emails:
+            if email not in owner_emails:
+                raise HTTPException(status_code=403, detail="This account is not authorized to become owner")
+        elif owner_count > 0:
+            raise HTTPException(status_code=400, detail="An owner already exists")
+
+        sync_bootstrap_owner_roles(conn, user.email)
+        conn.execute(
+            'UPDATE "user" SET role = \'owner\' WHERE id = %s',
+            (user.id,),
+        )
+        conn.commit()
+
+        updated = _get_current_user_row(conn, user.id)
+        if not updated:
+            raise HTTPException(status_code=404, detail="User not found")
+        return _to_user_info(updated)
 
 
 @router.get("/users")

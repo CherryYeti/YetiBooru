@@ -64,7 +64,7 @@
 				}}
 			/>
 
-			<button type="submit" class="rounded-lg bg-violet-500 px-4 py-2 hover:cursor-pointer"
+			<button type="submit" class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90"
 				>Search</button
 			>
 		</form>
@@ -78,7 +78,7 @@
 		{/if}
 		<a
 			href={resolve('/posts')}
-			class="inline-flex items-center text-neutral-400 transition-colors hover:text-white"
+			class="inline-flex items-center text-overlay1 transition-colors hover:text-text"
 		>
 			<span>View recent posts</span>
 			<ChevronRight className="ml-1 h-4 w-4" />

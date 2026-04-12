@@ -202,25 +202,25 @@
 	<p class="error">Error: {error}</p>
 {:else if tag}
 	<div class="flex flex-col items-center justify-center gap-8 pt-8">
-		<div class="w-full max-w-5xl rounded-xl border border-container-text/15 bg-container p-6">
+		<div class="w-full max-w-5xl rounded-xl border border-text/15 bg-surface0 p-6">
 			<p class="mb-4 text-5xl" style="color:{tag.category.color}">{slug}</p>
 
 			{#if tagSaveError}
-				<p class="mb-4 rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{tagSaveError}</p>
+				<p class="mb-4 rounded-lg bg-red/20 px-4 py-2 text-red">{tagSaveError}</p>
 			{/if}
 			{#if tagSaveSuccess}
-				<p class="mb-4 rounded-lg bg-green-500/20 px-4 py-2 text-green-400">{tagSaveSuccess}</p>
+				<p class="mb-4 rounded-lg bg-green/20 px-4 py-2 text-green">{tagSaveSuccess}</p>
 			{/if}
 
 			<form onsubmit={submit} class="flex w-full flex-col gap-4">
 				<div class="flex flex-col gap-1">
-					<label for="categories" class="text-sm text-container-text">Category</label>
+					<label for="categories" class="text-sm text-text">Category</label>
 					<select
 						name="categories"
 						id="categories"
 						bind:value={selectedCategoryLabel}
 						disabled={!canManageTag}
-						class="rounded-lg border border-container-text/15 bg-container-alt px-4 py-2 text-lg text-white outline-none"
+						class="rounded-lg border border-text/15 bg-surface1 px-4 py-2 text-lg text-text outline-none"
 					>
 						{#each categories as category (category.label)}
 							<option value={category.label} style="color:{category.color}">{category.label}</option
@@ -232,25 +232,25 @@
 				<button
 					type="submit"
 					disabled={isSavingTag || !canManageTag}
-					class="rounded-lg bg-violet-500 px-4 py-2 hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+					class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{isSavingTag ? 'Saving...' : 'Save'}
 				</button>
 			</form>
 		</div>
 
-		<div class="w-full max-w-5xl rounded-xl border border-container-text/15 bg-container p-6">
+		<div class="w-full max-w-5xl rounded-xl border border-text/15 bg-surface0 p-6">
 			<h3 class="mb-4 text-2xl font-semibold">Implications</h3>
-			<p class="mb-4 text-sm text-container-text">
+			<p class="mb-4 text-sm text-text">
 				When "{slug}" is added to a post, these tags will also be applied automatically.
 			</p>
 
 			{#if implicationError}
-				<p class="mb-4 rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{implicationError}</p>
+				<p class="mb-4 rounded-lg bg-red/20 px-4 py-2 text-red">{implicationError}</p>
 			{/if}
 
 			{#if implicationSuccess}
-				<p class="mb-4 rounded-lg bg-green-500/20 px-4 py-2 text-green-400">
+				<p class="mb-4 rounded-lg bg-green/20 px-4 py-2 text-green">
 					{implicationSuccess}
 				</p>
 			{/if}
@@ -259,7 +259,7 @@
 				<div class="mb-4 flex flex-wrap gap-2">
 					{#each implications as impl (impl.id)}
 						<span
-							class="inline-flex items-center gap-1 rounded-lg border border-container-text/15 bg-container-alt px-3 py-1.5"
+							class="inline-flex items-center gap-1 rounded-lg border border-text/15 bg-surface1 px-3 py-1.5"
 							style="color:{impl.category.color}"
 						>
 							{impl.label}
@@ -274,7 +274,7 @@
 					{/each}
 				</div>
 			{:else}
-				<p class="mb-4 text-sm text-container-text/50 italic">No implications set.</p>
+				<p class="mb-4 text-sm text-text/50 italic">No implications set.</p>
 			{/if}
 
 			<div class="flex flex-col gap-2">
@@ -291,7 +291,7 @@
 					<button
 						type="button"
 						disabled={!canManageTag}
-						class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
+						class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-text transition-colors hover:cursor-pointer hover:bg-surface1"
 						onclick={addImplication}
 					>
 						Add
@@ -301,7 +301,7 @@
 				<button
 					type="button"
 					disabled={isSavingImplications || !canManageTag}
-					class="rounded-lg bg-violet-500 px-4 py-2 text-white hover:cursor-pointer hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
+					class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 					onclick={saveImplications}
 				>
 					{isSavingImplications ? 'Saving...' : 'Save Implications'}
@@ -310,20 +310,20 @@
 		</div>
 
 		{#if canDeleteTag}
-			<div class="w-full max-w-5xl rounded-xl border border-red-500/30 bg-container p-6">
-				<h3 class="mb-2 text-2xl font-semibold text-red-400">Danger Zone</h3>
-				<p class="mb-4 text-sm text-container-text">
+			<div class="w-full max-w-5xl rounded-xl border border-red-500/30 bg-surface0 p-6">
+				<h3 class="mb-2 text-2xl font-semibold text-red">Danger Zone</h3>
+				<p class="mb-4 text-sm text-text">
 					Deleting a tag is permanent. The tag must be removed from all posts before it can be
 					deleted.
 				</p>
 
 				{#if deleteError}
-					<p class="mb-4 rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{deleteError}</p>
+					<p class="mb-4 rounded-lg bg-red/20 px-4 py-2 text-red">{deleteError}</p>
 				{/if}
 
 				{#if showDeleteConfirm}
-					<div class="flex flex-col gap-3 rounded-lg bg-red-500/10 p-4">
-						<p class="text-sm text-red-300">
+					<div class="flex flex-col gap-3 rounded-lg bg-red/10 p-4">
+						<p class="text-sm text-red">
 							Are you sure you want to delete <strong style="color:{tag.category.color}"
 								>{slug}</strong
 							>? This action cannot be undone.
@@ -332,14 +332,14 @@
 							<button
 								type="button"
 								disabled={isDeleting}
-								class="rounded-lg bg-red-500 px-4 py-2 text-white hover:cursor-pointer hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-50"
+								class="rounded-lg bg-red px-4 py-2 text-text hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 								onclick={deleteTag}
 							>
 								{isDeleting ? 'Deleting...' : 'Yes, Delete Tag'}
 							</button>
 							<button
 								type="button"
-								class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
+								class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-text transition-colors hover:cursor-pointer hover:bg-surface1"
 								onclick={() => {
 									showDeleteConfirm = false;
 									deleteError = undefined;
@@ -352,7 +352,7 @@
 				{:else}
 					<button
 						type="button"
-						class="rounded-lg border border-red-500/50 bg-red-500/10 px-4 py-2 text-red-400 transition-colors hover:cursor-pointer hover:bg-red-500/20"
+						class="rounded-lg border border-red-500/50 bg-red/10 px-4 py-2 text-red transition-colors hover:cursor-pointer hover:bg-red/20"
 						onclick={() => (showDeleteConfirm = true)}
 					>
 						Delete Tag

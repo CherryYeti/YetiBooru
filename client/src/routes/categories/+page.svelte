@@ -191,13 +191,13 @@
 	<p class="error">Error: {error}</p>
 {:else}
 	<div class="flex flex-col items-center justify-center gap-8 pt-8">
-		<div class="w-full max-w-5xl rounded-xl border border-container-text/15 bg-container p-6">
+		<div class="w-full max-w-5xl rounded-xl border border-text/15 bg-surface0 p-6">
 			<div class="mb-4 flex items-center justify-between">
 				<h2 class="text-3xl font-semibold">Categories</h2>
 				{#if canManageCategories}
 					<button
 						type="button"
-						class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container-alt"
+						class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-text transition-colors hover:cursor-pointer hover:bg-surface1"
 						onclick={() => (showCreateForm = !showCreateForm)}
 					>
 						{showCreateForm ? 'Cancel' : 'Create Category'}
@@ -206,40 +206,40 @@
 			</div>
 
 			{#if createSuccess}
-				<p class="mb-4 rounded-lg bg-green-500/20 px-4 py-2 text-green-400">{createSuccess}</p>
+				<p class="mb-4 rounded-lg bg-green/20 px-4 py-2 text-green">{createSuccess}</p>
 			{/if}
 			{#if editSuccess}
-				<p class="mb-4 rounded-lg bg-green-500/20 px-4 py-2 text-green-400">{editSuccess}</p>
+				<p class="mb-4 rounded-lg bg-green/20 px-4 py-2 text-green">{editSuccess}</p>
 			{/if}
 			{#if defaultError}
-				<p class="mb-4 rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{defaultError}</p>
+				<p class="mb-4 rounded-lg bg-red/20 px-4 py-2 text-red">{defaultError}</p>
 			{/if}
 
 			{#if showCreateForm}
 				<form
 					onsubmit={createCategory}
-					class="mb-6 flex flex-col gap-3 rounded-lg bg-container-alt p-4"
+					class="mb-6 flex flex-col gap-3 rounded-lg bg-surface1 p-4"
 				>
 					{#if createError}
-						<p class="rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{createError}</p>
+						<p class="rounded-lg bg-red/20 px-4 py-2 text-red">{createError}</p>
 					{/if}
 
 					<div class="flex flex-col gap-1">
-						<label for="new-category-label" class="text-sm text-container-text">Label</label>
+						<label for="new-category-label" class="text-sm text-text">Label</label>
 						<input
 							id="new-category-label"
 							bind:value={newCategoryLabel}
-							class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-lg outline-none"
+							class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-lg outline-none"
 							placeholder="e.g. species"
 						/>
 					</div>
 
 					<div class="flex flex-col gap-1">
-						<label for="new-category-color" class="text-sm text-container-text">Color</label>
+						<label for="new-category-color" class="text-sm text-text">Color</label>
 						<input
 							id="new-category-color"
 							bind:value={newCategoryColor}
-							class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-lg outline-none"
+							class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-lg outline-none"
 							placeholder="e.g. oklch(0.72 0.19 145)"
 						/>
 					</div>
@@ -247,7 +247,7 @@
 					<button
 						type="submit"
 						disabled={isCreating}
-						class="rounded-lg bg-violet-500 px-4 py-2 text-white hover:cursor-pointer hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-50"
+						class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{isCreating ? 'Creating...' : 'Create'}
 					</button>
@@ -256,35 +256,35 @@
 
 			<div class="flex flex-col gap-4">
 				{#if categories.length === 0}
-					<p class="text-container-text/50">No categories found.</p>
+					<p class="text-text/50">No categories found.</p>
 				{:else}
 					{#each categories as category (category.id ?? category.label)}
-						<div class="rounded-lg border border-container-text/15 bg-container-alt p-4">
+						<div class="rounded-lg border border-text/15 bg-surface1 p-4">
 							{#if editingOriginalLabel === category.label}
 								<form onsubmit={saveEdit} class="flex flex-col gap-3">
 									{#if editError}
-										<p class="rounded-lg bg-red-500/20 px-4 py-2 text-red-400">{editError}</p>
+										<p class="rounded-lg bg-red/20 px-4 py-2 text-red">{editError}</p>
 									{/if}
 
 									<div class="flex flex-col gap-1">
-										<label for="edit-label-{category.label}" class="text-sm text-container-text"
+										<label for="edit-label-{category.label}" class="text-sm text-text"
 											>Label</label
 										>
 										<input
 											id="edit-label-{category.label}"
 											bind:value={editLabel}
-											class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-lg outline-none"
+											class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-lg outline-none"
 										/>
 									</div>
 
 									<div class="flex flex-col gap-1">
-										<label for="edit-color-{category.label}" class="text-sm text-container-text"
+										<label for="edit-color-{category.label}" class="text-sm text-text"
 											>Color</label
 										>
 										<input
 											id="edit-color-{category.label}"
 											bind:value={editColor}
-											class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-lg outline-none"
+											class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-lg outline-none"
 										/>
 									</div>
 
@@ -292,13 +292,13 @@
 										<button
 											type="submit"
 											disabled={isSavingEdit}
-											class="rounded-lg bg-violet-500 px-4 py-2 text-white hover:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+											class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 										>
 											{isSavingEdit ? 'Saving...' : 'Save'}
 										</button>
 										<button
 											type="button"
-											class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container"
+											class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-text transition-colors hover:cursor-pointer hover:bg-surface0"
 											onclick={cancelEdit}
 										>
 											Cancel
@@ -313,7 +313,7 @@
 										</p>
 										{#if category.is_default}
 											<span
-												class="rounded-full border border-green-400/40 bg-green-500/15 px-2 py-0.5 text-xs text-green-300"
+												class="rounded-full border border-green-400/40 bg-green-500/15 px-2 py-0.5 text-xs text-green"
 												>default</span
 											>
 										{/if}
@@ -324,7 +324,7 @@
 												<button
 													type="button"
 													disabled={isSettingDefault}
-													class="rounded-lg border border-green-400/30 bg-green-500/10 px-4 py-2 text-green-300 transition-colors hover:cursor-pointer hover:bg-green-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+													class="rounded-lg border border-green-400/30 bg-green-500/10 px-4 py-2 text-green transition-colors hover:cursor-pointer hover:bg-green/20 disabled:cursor-not-allowed disabled:opacity-50"
 													onclick={() => setDefaultCategory(category.label)}
 												>
 													Set Default
@@ -332,7 +332,7 @@
 											{/if}
 											<button
 												type="button"
-												class="rounded-lg border border-container-text/15 bg-container px-4 py-2 text-container-text transition-colors hover:cursor-pointer hover:bg-container"
+												class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-text transition-colors hover:cursor-pointer hover:bg-surface0"
 												onclick={() => startEdit(category)}
 											>
 												Edit

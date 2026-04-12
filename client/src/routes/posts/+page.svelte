@@ -59,7 +59,10 @@
 				onsubmit={doSearch}
 			/>
 
-			<button type="submit" class="rounded-lg bg-violet-500 px-4 py-2 hover:cursor-pointer">
+			<button
+				type="submit"
+				class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90"
+			>
 				Search
 			</button>
 		</form>
@@ -68,7 +71,7 @@
 	{#if isLoading}
 		<p>Loading...</p>
 	{:else if posts.length === 0}
-		<p class="text-container-text/50">No posts found.</p>
+		<p class="text-text/50">No posts found.</p>
 	{:else}
 		<div class="flex flex-row flex-wrap justify-center gap-4">
 			{#each posts as post (post.id)}

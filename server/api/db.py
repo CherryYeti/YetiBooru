@@ -34,6 +34,43 @@ def _get_owner_emails() -> list[str]:
     return [email.strip().lower() for email in owner_emails_raw.split(",") if email.strip()]
 
 
+def get_owner_emails() -> list[str]:
+    return _get_owner_emails()
+
+
+def get_owner_count(conn) -> int:
+    row = conn.execute('SELECT COUNT(*) FROM "user" WHERE LOWER(role) = \'owner\'').fetchone()
+    return int(row[0] if row else 0)
+
+
+def sync_bootstrap_owner_roles(conn, fallback_email: str | None = None) -> int:
+    promoted = 0
+    owner_emails = _get_owner_emails()
+
+    if owner_emails:
+        for owner_email in owner_emails:
+            result = conn.execute(
+                'UPDATE "user" SET role = \'owner\' WHERE LOWER(email) = %s AND LOWER(role) <> \'owner\'',
+                (owner_email,),
+            )
+            promoted += result.rowcount or 0
+        return promoted
+
+    if fallback_email is None:
+        return 0
+
+    owner_count = get_owner_count(conn)
+    if owner_count > 0:
+        return 0
+
+    result = conn.execute(
+        'UPDATE "user" SET role = \'owner\' WHERE LOWER(email) = %s AND LOWER(role) <> \'owner\'',
+        (fallback_email.lower(),),
+    )
+    promoted += result.rowcount or 0
+    return promoted
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     del app
@@ -50,12 +87,7 @@ async def lifespan(app: FastAPI):
                     (normalized_role, row[0]),
                 )
 
-        owner_emails = _get_owner_emails()
-        for owner_email in owner_emails:
-            conn.execute(
-                "UPDATE \"user\" SET \"role\" = 'owner' WHERE LOWER(email) = %s",
-                (owner_email,),
-            )
+        sync_bootstrap_owner_roles(conn)
 
         conn.execute("ALTER TABLE categories ADD COLUMN IF NOT EXISTS is_default BOOLEAN NOT NULL DEFAULT FALSE")
         conn.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS media_ext VARCHAR(10)")

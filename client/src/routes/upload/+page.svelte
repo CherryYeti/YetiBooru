@@ -253,12 +253,12 @@
 	<h1 class="text-2xl font-bold">Upload</h1>
 
 	{#if error}
-		<p class="w-full max-w-3xl rounded bg-red-900/50 p-3 text-red-300">{error}</p>
+		<p class="w-full max-w-3xl rounded bg-red/20 p-3 text-red">{error}</p>
 	{/if}
 
 	<button
 		type="button"
-		class="w-full max-w-3xl rounded-lg border-2 border-dashed border-neutral-600 bg-container py-20 text-container-text transition-colors hover:cursor-pointer hover:border-neutral-400 hover:text-white focus:border-neutral-400 focus:outline-none"
+		class="w-full max-w-3xl rounded-lg border-2 border-dashed border-overlay0 bg-surface0 py-20 text-text transition-colors hover:cursor-pointer hover:border-overlay1 hover:text-text focus:border-neutral-400 focus:outline-none"
 		onclick={openPicker}
 		ondrop={onDrop}
 		ondragover={onDragOver}
@@ -278,7 +278,7 @@
 	{#if items.length > 0}
 		<div class="flex w-full max-w-3xl flex-col gap-2">
 			{#each items as it, i (it.url)}
-				<div class="flex items-center gap-3 rounded-lg bg-container p-2">
+				<div class="flex items-center gap-3 rounded-lg bg-surface0 p-2">
 					{#if it.kind === 'image'}
 						<img class="h-16 w-16 rounded object-cover" src={it.url} alt={it.file.name} />
 					{:else}
@@ -287,7 +287,7 @@
 					<span class="min-w-0 flex-1 truncate text-sm">{it.file.name}</span>
 					<button
 						type="button"
-						class="rounded p-1 text-neutral-400 transition-colors hover:text-white"
+						class="rounded p-1 text-overlay1 transition-colors hover:text-text"
 						onclick={() => removeAt(i)}
 					>
 						<X size={16} />
@@ -297,7 +297,7 @@
 		</div>
 
 		<div class="flex w-full max-w-3xl flex-col gap-2">
-			<span class="text-sm text-container-text">Tags (space-separated, applied to all files)</span>
+			<span class="text-sm text-text">Tags (space-separated, applied to all files)</span>
 			<TagInput
 				bind:value={tagValue}
 				placeholder="e.g. landscape sky photo"
@@ -308,13 +308,13 @@
 		</div>
 
 		<div class="flex w-full max-w-3xl flex-col gap-2">
-			<label for="source-url" class="text-sm text-container-text">Source URL (optional)</label>
+			<label for="source-url" class="text-sm text-text">Source URL (optional)</label>
 			<input
 				id="source-url"
 				type="url"
 				bind:value={sourceUrl}
 				placeholder="https://example.com/original"
-				class="w-full rounded-lg border border-container-text/15 bg-container px-3 py-2 text-container-text transition-colors outline-none focus:border-violet-500"
+				class="w-full rounded-lg border border-text/15 bg-surface0 px-3 py-2 text-text transition-colors outline-none focus:border-mauve"
 			/>
 		</div>
 
@@ -322,7 +322,7 @@
 			<button
 				type="button"
 				disabled={uploading}
-				class="rounded-lg bg-violet-500 px-12 py-3 font-semibold text-white transition-opacity hover:cursor-pointer hover:opacity-90 disabled:opacity-50"
+				class="rounded-lg bg-mauve px-12 py-3 font-semibold text-crust transition-opacity hover:cursor-pointer hover:opacity-90 disabled:opacity-50"
 				onclick={upload}
 			>
 				{uploading ? 'Uploading...' : `Upload ${items.length} file${items.length > 1 ? 's' : ''}`}
@@ -330,7 +330,7 @@
 			<button
 				type="button"
 				disabled={uploading}
-				class="rounded-lg bg-red-500/80 px-12 py-3 font-semibold text-white transition-opacity hover:cursor-pointer hover:opacity-90 disabled:opacity-50"
+				class="rounded-lg bg-red/80 px-12 py-3 font-semibold text-text transition-opacity hover:cursor-pointer hover:opacity-90 disabled:opacity-50"
 				onclick={clear}
 			>
 				Clear all

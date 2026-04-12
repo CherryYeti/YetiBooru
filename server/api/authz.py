@@ -4,7 +4,7 @@ from urllib.parse import unquote
 
 from fastapi import Depends, HTTPException, Request
 
-from api.db import get_conn
+from api.db import get_conn, sync_bootstrap_owner_roles
 
 Role = Literal["owner", "admin", "moderator", "user"]
 
@@ -108,6 +108,20 @@ def _get_user_from_request(request: Request) -> AuthUser | None:
             """,
             (token_candidates, token_candidates),
         ).fetchone()
+
+        if row:
+            sync_bootstrap_owner_roles(conn, row[2])
+            row = conn.execute(
+                """
+                SELECT u.id, u.name, u.email, u.role, COALESCE(u.banned, FALSE)
+                FROM session s
+                JOIN "user" u ON u.id = s."userId"
+                WHERE (s.token = ANY(%s::text[]) OR s.id = ANY(%s::text[]))
+                  AND s."expiresAt" > CURRENT_TIMESTAMP
+                LIMIT 1
+                """,
+                (token_candidates, token_candidates),
+            ).fetchone()
 
     if not row:
         return None
