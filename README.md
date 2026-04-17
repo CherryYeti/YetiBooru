@@ -8,8 +8,7 @@ Keep in mind that this is extremely alpha software, and it is not meant to be ex
 - [x] Handle gif uploads
 - [x] Test if uploads need chunking
 - [x] Add admin account/permissions
-- [ ] Add moderation tools
-- [ ] Make API gelbooru/szurubooru compatible?
+- [x] Add moderation tools
 
 Bootstrap notes:
 - Set `OWNER_EMAILS` to a comma-separated list of trusted emails to pin the initial owner account(s).

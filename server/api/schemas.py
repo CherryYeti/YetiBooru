@@ -76,3 +76,26 @@ class UpdateUserRoleRequest(BaseModel):
 class UpdateUserBanRequest(BaseModel):
     banned: bool
     reason: str | None = None
+
+
+class CreatePostReportRequest(BaseModel):
+    reason: str
+
+
+class ResolvePostReportRequest(BaseModel):
+    action: Literal["resolved", "dismissed", "deleted"]
+    note: str | None = None
+
+
+class PostReportInfo(BaseModel):
+    id: int
+    post_id: int | None
+    reporter_user_id: str
+    reporter_name: str | None = None
+    reason: str
+    status: Literal["open", "resolved", "dismissed", "deleted"]
+    resolution_note: str | None = None
+    created_at: str
+    resolved_at: str | None = None
+    resolved_by_user_id: str | None = None
+    resolved_by_name: str | None = None

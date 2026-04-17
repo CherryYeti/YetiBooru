@@ -9,6 +9,7 @@
 	import type { TagInterface } from '$lib/types/tag';
 	import { authClient } from '$lib/auth-client';
 	import { canAdmin, canModerate } from '$lib/roles';
+	import { formatDateTime } from '$lib/utils/date';
 
 	let post: PostInterface | undefined = $state();
 	let allTags: TagInterface[] = $state([]);
@@ -24,6 +25,11 @@
 	let tagEditError: string | undefined = $state();
 	let tagEditSuccess: string | undefined = $state();
 	let isDeleting = $state(false);
+	let reportReason = $state('');
+	let isReporting = $state(false);
+	let reportError: string | undefined = $state();
+	let reportSuccess: string | undefined = $state();
+	let showReportForm = $state(false);
 
 	let nextPostId: number | null = $state(null);
 	let prevPostId: number | null = $state(null);
@@ -31,16 +37,15 @@
 	const role = $derived($session?.data?.user?.role ?? 'user');
 	const canEditPostTags = $derived(canModerate(role));
 	const canDeletePost = $derived(canAdmin(role));
+	const canReportPost = $derived(Boolean($session?.data));
 
 	const slug = $derived(page.params.slug ?? '');
 	const mediaExt = $derived(post?.media_ext || (post?.type === 'video' ? 'mp4' : 'png'));
 	const uploadedAtDisplay = $derived(
-		post?.uploaded_at
-			? new Date(post.uploaded_at).toLocaleString(undefined, {
-					dateStyle: 'medium',
-					timeStyle: 'long'
-				})
-			: '-'
+		formatDateTime(post?.uploaded_at, {
+			dateStyle: 'medium',
+			timeStyle: 'long'
+		})
 	);
 	const dimensionsDisplay = $derived(
 		post?.media_width && post?.media_height ? `${post.media_width} x ${post.media_height}` : '-'
@@ -249,6 +254,41 @@
 			isDeleting = false;
 		}
 	}
+
+	async function reportPost() {
+		if (!canReportPost || !post) return;
+
+		reportError = undefined;
+		reportSuccess = undefined;
+
+		const reason = reportReason.trim();
+		if (reason.length < 5) {
+			reportError = 'Please include a clear reason (at least 5 characters).';
+			return;
+		}
+
+		isReporting = true;
+		try {
+			const response = await fetch(`/api/post/${post.id}/report`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ reason })
+			});
+
+			if (!response.ok) {
+				const data = await response.json().catch(() => null);
+				throw new Error(data?.detail ?? `HTTP error! Status: ${response.status}`);
+			}
+
+			reportReason = '';
+			reportSuccess = 'Report submitted. A moderator will review it.';
+			showReportForm = false;
+		} catch (err) {
+			reportError = err instanceof Error ? err.message : 'Unable to submit report.';
+		} finally {
+			isReporting = false;
+		}
+	}
 </script>
 
 {#if isLoading}
@@ -359,6 +399,46 @@
 					{/if}
 				</div>
 			</div>
+
+			{#if canReportPost}
+				<div class="mt-2 rounded-sm bg-mantle px-3 py-3 text-sm">
+					<div class="flex items-center justify-between gap-2">
+						<p class="text-xs tracking-wide uppercase opacity-70">Report Post</p>
+						<button
+							type="button"
+							onclick={() => {
+								showReportForm = !showReportForm;
+								reportError = undefined;
+							}}
+							class="rounded-full bg-surface0 px-3 py-1.5 text-xs text-text transition-colors hover:cursor-pointer hover:bg-surface1"
+						>
+							{showReportForm ? 'Hide' : 'Report'}
+						</button>
+					</div>
+					{#if reportSuccess}
+						<p class="mb-2 rounded-sm bg-green/20 px-3 py-2 text-green">{reportSuccess}</p>
+					{/if}
+					{#if showReportForm}
+						{#if reportError}
+							<p class="mt-2 mb-2 rounded-sm bg-red/20 px-3 py-2 text-red">{reportError}</p>
+						{/if}
+						<textarea
+							bind:value={reportReason}
+							rows="3"
+							placeholder="Describe what is wrong with this post"
+							class="mt-2 w-full rounded-lg bg-crust px-3 py-2 text-text outline-none placeholder:text-overlay1 focus:ring-2 focus:ring-mauve focus:outline-none"
+						></textarea>
+						<button
+							type="button"
+							disabled={isReporting}
+							onclick={reportPost}
+							class="mt-2 w-full rounded-full bg-linear-to-r from-peach to-red px-4 py-2 font-semibold text-crust transition-colors hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							{isReporting ? 'Submitting report...' : 'Submit Report'}
+						</button>
+					{/if}
+				</div>
+			{/if}
 
 			{#if tagEditSuccess}
 				<p class="mt-2 rounded-sm bg-green/20 px-4 py-2 text-green">{tagEditSuccess}</p>

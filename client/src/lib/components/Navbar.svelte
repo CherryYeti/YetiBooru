@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { authClient } from '$lib/auth-client';
-	import { canAdmin } from '$lib/roles';
+	import { canAdmin, canModerate } from '$lib/roles';
 	import { goto } from '$app/navigation';
 
 	const session = authClient.useSession();
 	const role = $derived($session?.data?.user?.role ?? 'user');
+	const canViewModeration = $derived(canModerate(role));
 	const canViewAdmin = $derived(canAdmin(role));
 </script>
 
@@ -42,12 +43,20 @@
 	>
 		Categories
 	</a>
+	{#if canViewModeration}
+		<a
+			href="/admin/moderation"
+			class="inline-flex items-center text-overlay2 transition-colors hover:text-text"
+		>
+			Moderation
+		</a>
+	{/if}
 	{#if canViewAdmin}
 		<a
 			href="/admin/users"
 			class="inline-flex items-center text-overlay2 transition-colors hover:text-text"
 		>
-			Admin
+			Users
 		</a>
 	{/if}
 

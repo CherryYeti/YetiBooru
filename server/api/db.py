@@ -98,6 +98,41 @@ async def lifespan(app: FastAPI):
         conn.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS source_url TEXT")
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS post_reports (
+                id SERIAL PRIMARY KEY,
+                post_id INTEGER REFERENCES posts (id) ON DELETE SET NULL,
+                reporter_user_id TEXT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE,
+                reason TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'resolved', 'dismissed', 'deleted')),
+                resolution_note TEXT,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                resolved_at TIMESTAMPTZ,
+                resolved_by_user_id TEXT REFERENCES "user" ("id") ON DELETE SET NULL
+            )
+            """
+        )
+        conn.execute("ALTER TABLE post_reports ALTER COLUMN post_id DROP NOT NULL")
+        conn.execute("ALTER TABLE post_reports DROP CONSTRAINT IF EXISTS post_reports_post_id_fkey")
+        conn.execute(
+            """
+            ALTER TABLE post_reports
+            ADD CONSTRAINT post_reports_post_id_fkey
+            FOREIGN KEY (post_id)
+            REFERENCES posts(id)
+            ON DELETE SET NULL
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_post_reports_post_id ON post_reports (post_id)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_post_reports_status ON post_reports (status)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_post_reports_created_at ON post_reports (created_at DESC)"
+        )
+        conn.execute(
+            """
             UPDATE posts
             SET media_ext = CASE WHEN type = 'video' THEN 'mp4' ELSE 'png' END
             WHERE media_ext IS NULL OR media_ext = ''

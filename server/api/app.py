@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from api.db import lifespan
+from api.routers.moderation import router as moderation_router
 from api.routers.categories import router as categories_router
 from api.routers.posts import router as posts_router
 from api.routers.root import router as root_router
@@ -16,3 +17,4 @@ app.include_router(tags_router)
 app.include_router(categories_router)
 app.include_router(uploads_router)
 app.include_router(users_router)
+app.include_router(moderation_router)

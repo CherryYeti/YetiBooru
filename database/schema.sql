@@ -111,3 +111,24 @@ create index "session_userId_idx" on "session" ("userId");
 create index "account_userId_idx" on "account" ("userId");
 
 create index "verification_identifier_idx" on "verification" ("identifier");
+
+CREATE TABLE
+  post_reports (
+    id SERIAL PRIMARY KEY,
+    post_id INTEGER REFERENCES posts (id) ON DELETE SET NULL,
+    reporter_user_id TEXT NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE,
+    reason TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (
+      status IN ('open', 'resolved', 'dismissed', 'deleted')
+    ),
+    resolution_note TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMPTZ,
+    resolved_by_user_id TEXT REFERENCES "user" ("id") ON DELETE SET NULL
+  );
+
+CREATE INDEX idx_post_reports_post_id ON post_reports (post_id);
+
+CREATE INDEX idx_post_reports_status ON post_reports (status);
+
+CREATE INDEX idx_post_reports_created_at ON post_reports (created_at DESC);

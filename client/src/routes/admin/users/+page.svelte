@@ -2,25 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
-
-	type UserRole = 'owner' | 'admin' | 'moderator' | 'user';
-	type UserInfo = {
-		id: string;
-		name: string;
-		email: string;
-		role: UserRole;
-		banned: boolean;
-		ban_reason: string | null;
-		ban_expires: string | null;
-	};
-
-	type BootstrapStatus = {
-		currentUser: UserInfo;
-		ownerCount: number;
-		ownerEmails: string[];
-		canBootstrap: boolean;
-		bootstrapRequired: boolean;
-	};
+	import type { BootstrapStatus, UserInfo, UserRole } from '$lib/types/admin';
+	import { loadBootstrapStatus } from '$lib/utils/admin-access';
 
 	const ROLE_WEIGHT: Record<UserRole, number> = {
 		user: 1,
@@ -50,11 +33,6 @@
 		return ROLE_WEIGHT[targetRole] < ROLE_WEIGHT[actorRole];
 	}
 
-	function canBanUser(actorRole: UserRole, targetRole: UserRole): boolean {
-		if (actorRole === 'owner') return true;
-		return ROLE_WEIGHT[targetRole] < ROLE_WEIGHT[actorRole];
-	}
-
 	function getRoleOptions(actorRole: UserRole, targetRole: UserRole): UserRole[] {
 		if (!canEditUser(actorRole, targetRole)) return [targetRole];
 		return roleOptions[actorRole] ?? ['user'];
@@ -74,17 +52,17 @@
 		message = '';
 
 		try {
-			const bootstrapRes = await fetch('/api/users/bootstrap');
-			if (bootstrapRes.status === 401) {
+			const bootstrap = await loadBootstrapStatus('Unable to load account status.');
+			if (bootstrap.kind === 'unauthorized') {
 				goto(resolve('/login'));
 				return;
 			}
-			if (!bootstrapRes.ok) {
-				error = 'Unable to load account status.';
+			if (bootstrap.kind === 'error') {
+				error = bootstrap.message;
 				return;
 			}
 
-			status = (await bootstrapRes.json()) as BootstrapStatus;
+			status = bootstrap.status;
 
 			if (status.currentUser.role !== 'owner' && status.currentUser.role !== 'admin') {
 				return;
@@ -279,7 +257,7 @@
 									canEditUser(status.currentUser.role, user.role) &&
 									user.id !== status.currentUser.id}
 								{@const bannable =
-									canBanUser(status.currentUser.role, user.role) &&
+									canEditUser(status.currentUser.role, user.role) &&
 									user.id !== status.currentUser.id}
 								<tr class="align-top text-subtext1 odd:bg-crust even:bg-mantle">
 									<td class="px-4 py-4">
