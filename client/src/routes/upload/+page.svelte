@@ -322,7 +322,7 @@
 			<button
 				type="button"
 				disabled={uploading}
-				class="rounded-lg bg-mauve px-12 py-3 font-semibold text-crust transition-opacity hover:cursor-pointer hover:opacity-90 disabled:opacity-50"
+				class="rounded-full bg-linear-to-r from-pink to-mauve px-12 py-3 font-semibold text-crust transition-opacity hover:cursor-pointer hover:opacity-90 disabled:opacity-50"
 				onclick={upload}
 			>
 				{uploading ? 'Uploading...' : `Upload ${items.length} file${items.length > 1 ? 's' : ''}`}

@@ -30,10 +30,7 @@
 </script>
 
 <div class="flex min-h-[80vh] items-center justify-center">
-	<form
-		onsubmit={handleLogin}
-		class="flex w-full max-w-md flex-col gap-4 rounded-lg bg-surface0 p-8"
-	>
+	<form onsubmit={handleLogin} class="flex w-full max-w-md flex-col gap-4 rounded-lg bg-mantle p-8">
 		<h1 class="text-2xl font-bold">Log In</h1>
 
 		{#if error}
@@ -46,7 +43,7 @@
 				type="email"
 				bind:value={email}
 				required
-				class="rounded bg-surface1 px-3 py-2 text-text outline-none focus:ring-2 focus:ring-mauve/40"
+				class="rounded bg-crust px-3 py-2 text-text outline-none focus:ring-2 focus:ring-mauve/40"
 			/>
 		</label>
 
@@ -56,14 +53,14 @@
 				type="password"
 				bind:value={password}
 				required
-				class="rounded bg-surface1 px-3 py-2 text-text outline-none focus:ring-2 focus:ring-mauve/40"
+				class="rounded bg-crust px-3 py-2 text-text outline-none focus:ring-2 focus:ring-mauve/40"
 			/>
 		</label>
 
 		<button
 			type="submit"
 			disabled={loading}
-			class="mt-2 rounded-lg bg-mauve px-4 py-2 font-semibold text-crust transition-opacity hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+			class="mt-2 rounded-full bg-linear-to-r from-pink to-mauve px-4 py-2 font-semibold text-crust transition-opacity hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 		>
 			{loading ? 'Logging in...' : 'Log In'}
 		</button>

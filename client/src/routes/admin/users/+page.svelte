@@ -204,56 +204,43 @@
 	<title>User Management</title>
 </svelte:head>
 
-<div class="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8">
-	<div
-		class="flex flex-col gap-4 rounded-2xl border border-overlay0 bg-surface0/90 p-6 shadow-2xl shadow-crust/50 backdrop-blur"
-	>
-		<div class="flex flex-col gap-2">
-			<p class="text-sm tracking-[0.3em] text-overlay1 uppercase">Administration</p>
-			<div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-				<div>
-					<h1 class="text-3xl font-semibold text-text">User management</h1>
-					<p class="mt-1 max-w-2xl text-sm text-overlay1">
-						Assign roles, ban accounts, and bootstrap the first owner when the site is new.
-					</p>
-				</div>
-				{#if status}
-					<div
-						class="rounded-xl border border-overlay0 bg-surface1/60 px-4 py-3 text-sm text-subtext1"
-					>
-						<p class="font-medium text-text">Signed in as {status.currentUser.name}</p>
-						<p>{formatLabel(status.currentUser.role)} · {status.currentUser.email}</p>
-					</div>
-				{/if}
+<div class="flex flex-col items-center justify-center gap-8 px-4 pt-8">
+	<div class="w-full max-w-5xl rounded-xl bg-mantle p-6">
+		<div class="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+			<div>
+				<h1 class="text-3xl font-semibold text-text">User management</h1>
+				<p class="mt-1 text-sm text-subtext1">
+					Assign roles, ban accounts, and bootstrap the first owner when the site is new.
+				</p>
 			</div>
+			{#if status}
+				<div class="rounded-lg bg-crust px-4 py-3 text-sm text-subtext1">
+					<p class="font-medium text-text">Signed in as {status.currentUser.name}</p>
+					<p>{formatLabel(status.currentUser.role)} · {status.currentUser.email}</p>
+				</div>
+			{/if}
 		</div>
 
 		{#if error}
-			<div class="rounded-xl border border-red/30 bg-red/20 px-4 py-3 text-sm text-red">
+			<div class="mb-4 rounded-lg bg-red/20 px-4 py-3 text-sm text-red">
 				{error}
 			</div>
 		{/if}
 
 		{#if message}
-			<div
-				class="rounded-xl border border-green/30 bg-green/20 px-4 py-3 text-sm text-green"
-			>
+			<div class="mb-4 rounded-lg bg-green/20 px-4 py-3 text-sm text-green">
 				{message}
 			</div>
 		{/if}
 
 		{#if loading}
-			<div class="rounded-xl border border-overlay0 bg-surface1/60 px-4 py-6 text-sm text-overlay1">
-				Loading user records...
-			</div>
+			<div class="rounded-lg bg-crust px-4 py-6 text-sm text-subtext1">Loading user records...</div>
 		{:else if status?.bootstrapRequired && status.canBootstrap}
-			<div
-				class="flex flex-col gap-4 rounded-xl border border-yellow/30 bg-yellow/20 p-5 text-yellow"
-			>
+			<div class="flex flex-col gap-4 rounded-lg bg-yellow/20 p-5 text-yellow">
 				<div>
-					<p class="text-sm tracking-[0.25em] text-yellow uppercase">Bootstrap required</p>
+					<p class="text-sm font-semibold text-yellow">Bootstrap required</p>
 					<h2 class="mt-2 text-xl font-semibold text-text">Claim the owner account</h2>
-					<p class="mt-2 max-w-3xl text-sm text-yellow/90">
+					<p class="mt-2 text-sm text-yellow/90">
 						No owner exists yet. This account is eligible to become the first owner, which unlocks
 						full moderation and permissions management.
 					</p>
@@ -262,7 +249,7 @@
 					type="button"
 					onclick={claimOwner}
 					disabled={isBusy('bootstrap', status.currentUser.id)}
-					class="inline-flex w-fit items-center rounded-lg bg-yellow px-4 py-2 font-semibold text-crust transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+					class="w-fit rounded-full bg-linear-to-r from-yellow to-peach px-4 py-2 font-semibold text-crust transition hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{#if isBusy('bootstrap', status.currentUser.id)}
 						Claiming owner access...
@@ -272,13 +259,13 @@
 				</button>
 			</div>
 		{:else if status?.currentUser.role === 'owner' || status?.currentUser.role === 'admin'}
-		<div class="overflow-hidden rounded-2xl border border-overlay0 bg-surface1/60">
-			<div class="border-b border-overlay0 px-4 py-3 text-sm text-overlay1">
+			<div class="overflow-hidden rounded-lg bg-crust">
+				<div class="border-b border-mantle px-4 py-3 text-sm text-subtext1">
 					{users.length} accounts
 				</div>
 				<div class="overflow-x-auto">
 					<table class="min-w-full text-left text-sm">
-						<thead class="bg-surface0/50 text-subtext1">
+						<thead class="bg-mantle text-text">
 							<tr>
 								<th class="px-4 py-3 font-medium">User</th>
 								<th class="px-4 py-3 font-medium">Role</th>
@@ -286,7 +273,7 @@
 								<th class="px-4 py-3 font-medium">Notes</th>
 							</tr>
 						</thead>
-						<tbody class="divide-y divide-white/10">
+						<tbody>
 							{#each users as user}
 								{@const editable =
 									canEditUser(status.currentUser.role, user.role) &&
@@ -294,14 +281,14 @@
 								{@const bannable =
 									canBanUser(status.currentUser.role, user.role) &&
 									user.id !== status.currentUser.id}
-								<tr class="align-top text-subtext1">
+								<tr class="align-top text-subtext1 odd:bg-crust even:bg-mantle">
 									<td class="px-4 py-4">
 										<div class="flex flex-col gap-1">
 											<div class="font-medium text-text">{user.name}</div>
 											<div class="text-xs text-overlay1">{user.email}</div>
 											{#if user.id === status.currentUser.id}
 												<span
-													class="mt-1 inline-flex w-fit rounded-full border border-green/30 bg-emerald-500/10 px-2 py-1 text-[11px] tracking-[0.2em] text-green uppercase"
+													class="mt-1 inline-flex w-fit rounded-full bg-green/20 px-2 py-1 text-[11px] text-green"
 													>Current user</span
 												>
 											{/if}
@@ -312,7 +299,7 @@
 											<select
 												bind:value={roleDrafts[user.id]}
 												disabled={!editable || isBusy('role', user.id)}
-												class="rounded-lg border border-overlay0 bg-surface1 px-3 py-2 text-text transition outline-none focus:border-mauve/60 disabled:cursor-not-allowed disabled:opacity-60"
+												class="rounded-lg bg-surface0 px-3 py-2 text-text outline-none focus:ring-2 focus:ring-mauve focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 												onchange={() => void updateRole(user)}
 											>
 												{#each getRoleOptions(status.currentUser.role, user.role) as option}
@@ -320,11 +307,11 @@
 												{/each}
 											</select>
 											{#if !editable}
-													<p class="text-xs text-overlay1">
+												<p class="text-xs text-overlay1">
 													Role locked by your current permissions.
 												</p>
 											{:else if isBusy('role', user.id)}
-													<p class="text-xs text-overlay1">Saving role change...</p>
+												<p class="text-xs text-overlay1">Saving role change...</p>
 											{/if}
 										</div>
 									</td>
@@ -333,13 +320,13 @@
 											<div class="flex flex-col gap-2">
 												<p class="text-sm text-red">Banned</p>
 												{#if user.ban_reason}
-															<p class="max-w-xs text-xs text-overlay1">{user.ban_reason}</p>
+													<p class="max-w-xs text-xs text-overlay1">{user.ban_reason}</p>
 												{/if}
 												<button
 													type="button"
 													onclick={() => void updateBan(user, false)}
 													disabled={!bannable || isBusy('ban', user.id)}
-															class="inline-flex w-fit items-center rounded-lg border border-overlay0 px-3 py-2 text-text transition hover:border-overlay1 disabled:cursor-not-allowed disabled:opacity-60"
+													class="w-fit rounded-lg bg-surface0 px-3 py-2 text-text transition hover:cursor-pointer hover:bg-surface1 disabled:cursor-not-allowed disabled:opacity-50"
 												>
 													{#if isBusy('ban', user.id)}
 														Updating...
@@ -355,13 +342,13 @@
 													disabled={!bannable || isBusy('ban', user.id)}
 													placeholder="Ban reason"
 													rows="2"
-															class="rounded-lg border border-overlay0 bg-surface1 px-3 py-2 text-text transition outline-none placeholder:text-overlay1 focus:border-mauve/60 disabled:cursor-not-allowed disabled:opacity-60"
+													class="rounded-lg bg-surface0 px-3 py-2 text-text outline-none placeholder:text-overlay1 focus:ring-2 focus:ring-mauve focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 												></textarea>
 												<button
 													type="button"
 													onclick={() => void updateBan(user, true)}
 													disabled={!bannable || isBusy('ban', user.id)}
-															class="inline-flex w-fit items-center rounded-lg bg-red px-3 py-2 font-semibold text-text transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+													class="w-fit rounded-full bg-linear-to-r from-red to-maroon px-3 py-2 font-semibold text-crust transition hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 												>
 													{#if isBusy('ban', user.id)}
 														Updating...
@@ -390,7 +377,7 @@
 				</div>
 			</div>
 		{:else}
-			<div class="rounded-xl border border-overlay0 bg-surface1/60 px-4 py-6 text-sm text-subtext1">
+			<div class="rounded-lg bg-crust px-4 py-6 text-sm text-subtext1">
 				You do not have permission to manage users.
 			</div>
 		{/if}

@@ -191,13 +191,12 @@
 	<p class="error">Error: {error}</p>
 {:else}
 	<div class="flex flex-col items-center justify-center gap-8 pt-8">
-		<div class="w-full max-w-5xl rounded-xl border border-text/15 bg-surface0 p-6">
+		<div class="w-full max-w-5xl rounded-xl bg-mantle p-6">
 			<div class="mb-4 flex items-center justify-between">
-				<h2 class="text-3xl font-semibold">Categories</h2>
 				{#if canManageCategories}
 					<button
 						type="button"
-						class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-text transition-colors hover:cursor-pointer hover:bg-surface1"
+						class="rounded-lg bg-mantle px-4 py-2 text-text transition-colors hover:cursor-pointer hover:bg-crust"
 						onclick={() => (showCreateForm = !showCreateForm)}
 					>
 						{showCreateForm ? 'Cancel' : 'Create Category'}
@@ -216,10 +215,7 @@
 			{/if}
 
 			{#if showCreateForm}
-				<form
-					onsubmit={createCategory}
-					class="mb-6 flex flex-col gap-3 rounded-lg bg-surface1 p-4"
-				>
+				<form onsubmit={createCategory} class="mb-6 flex flex-col gap-3 rounded-lg bg-crust p-4">
 					{#if createError}
 						<p class="rounded-lg bg-red/20 px-4 py-2 text-red">{createError}</p>
 					{/if}
@@ -229,7 +225,7 @@
 						<input
 							id="new-category-label"
 							bind:value={newCategoryLabel}
-							class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-lg outline-none"
+							class="rounded-lg bg-mantle px-4 py-2 text-lg outline-none"
 							placeholder="e.g. species"
 						/>
 					</div>
@@ -239,7 +235,7 @@
 						<input
 							id="new-category-color"
 							bind:value={newCategoryColor}
-							class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-lg outline-none"
+							class="rounded-lg bg-mantle px-4 py-2 text-lg outline-none"
 							placeholder="e.g. oklch(0.72 0.19 145)"
 						/>
 					</div>
@@ -247,7 +243,7 @@
 					<button
 						type="submit"
 						disabled={isCreating}
-						class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+						class="rounded-full bg-linear-to-r from-pink to-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 					>
 						{isCreating ? 'Creating...' : 'Create'}
 					</button>
@@ -259,7 +255,7 @@
 					<p class="text-text/50">No categories found.</p>
 				{:else}
 					{#each categories as category (category.id ?? category.label)}
-						<div class="rounded-lg border border-text/15 bg-surface1 p-4">
+						<div class="rounded-lg bg-crust p-4">
 							{#if editingOriginalLabel === category.label}
 								<form onsubmit={saveEdit} class="flex flex-col gap-3">
 									{#if editError}
@@ -267,24 +263,20 @@
 									{/if}
 
 									<div class="flex flex-col gap-1">
-										<label for="edit-label-{category.label}" class="text-sm text-text"
-											>Label</label
-										>
+										<label for="edit-label-{category.label}" class="text-sm text-text">Label</label>
 										<input
 											id="edit-label-{category.label}"
 											bind:value={editLabel}
-											class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-lg outline-none"
+											class="rounded-lg bg-mantle px-4 py-2 text-lg outline-none"
 										/>
 									</div>
 
 									<div class="flex flex-col gap-1">
-										<label for="edit-color-{category.label}" class="text-sm text-text"
-											>Color</label
-										>
+										<label for="edit-color-{category.label}" class="text-sm text-text">Color</label>
 										<input
 											id="edit-color-{category.label}"
 											bind:value={editColor}
-											class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-lg outline-none"
+											class="rounded-lg bg-mantle px-4 py-2 text-lg outline-none"
 										/>
 									</div>
 
@@ -292,13 +284,13 @@
 										<button
 											type="submit"
 											disabled={isSavingEdit}
-											class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+											class="rounded-full bg-linear-to-r from-pink to-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 										>
 											{isSavingEdit ? 'Saving...' : 'Save'}
 										</button>
 										<button
 											type="button"
-											class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-text transition-colors hover:cursor-pointer hover:bg-surface0"
+											class="rounded-lg bg-mantle px-4 py-2 text-text transition-colors hover:cursor-pointer hover:bg-mantle"
 											onclick={cancelEdit}
 										>
 											Cancel
@@ -332,7 +324,7 @@
 											{/if}
 											<button
 												type="button"
-												class="rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-text transition-colors hover:cursor-pointer hover:bg-surface0"
+												class="rounded-lg bg-mantle px-4 py-2 text-text transition-colors hover:cursor-pointer hover:bg-mantle"
 												onclick={() => startEdit(category)}
 											>
 												Edit

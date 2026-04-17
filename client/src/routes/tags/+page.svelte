@@ -120,13 +120,13 @@
 			<input
 				bind:value
 				placeholder="Filter tags by name"
-				class="h-11 w-full rounded-lg border border-text/15 bg-surface0 px-4 py-2 text-lg outline-none"
+				class="h-11 w-full rounded-sm bg-mantle px-4 py-2 text-lg text-white outline-none focus:ring-2 focus:ring-mauve focus:outline-none"
 			/>
 
 			{#if canManageTags}
 				<button
 					type="button"
-					class="h-11 shrink-0 rounded-lg border border-text/15 bg-surface0 px-4 py-2 whitespace-nowrap text-text transition-colors hover:cursor-pointer hover:bg-surface1"
+					class="h-11 shrink-0 rounded-full bg-linear-to-r from-pink to-mauve px-4 py-2 whitespace-nowrap text-crust transition-colors hover:cursor-pointer hover:bg-surface1 hover:opacity-90"
 					onclick={() => (showCreateForm = !showCreateForm)}
 				>
 					{showCreateForm ? 'Cancel' : 'Create Tag'}
@@ -137,7 +137,7 @@
 		{#if showCreateForm && canManageTags}
 			<form
 				onsubmit={createTag}
-				class="flex w-full max-w-xl flex-col gap-4 rounded-xl border border-text/15 bg-surface0 p-6"
+				class="flex w-full max-w-xl flex-col gap-4 rounded-xl bg-mantle p-6"
 			>
 				<h3 class="text-xl font-semibold">Create New Tag</h3>
 
@@ -150,7 +150,7 @@
 					<input
 						id="new-tag-label"
 						bind:value={newTagLabel}
-						class="rounded-lg border border-text/15 bg-surface1 px-4 py-2 text-lg outline-none"
+						class="rounded-lg bg-crust px-4 py-2 text-lg outline-none"
 						placeholder="e.g. landscape"
 					/>
 				</div>
@@ -160,7 +160,7 @@
 					<select
 						id="new-tag-category"
 						bind:value={newTagCategoryId}
-						class="rounded-lg border border-text/15 bg-surface1 px-4 py-2 text-lg text-text outline-none"
+						class="rounded-lg bg-crust px-4 py-2 text-lg text-text outline-none"
 					>
 						{#each categories as category, i (category.label)}
 							<option value={category.id ?? i + 1} style="color:{category.color}">
@@ -173,7 +173,7 @@
 				<button
 					type="submit"
 					disabled={isCreating}
-					class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+					class="rounded-full bg-linear-to-r from-pink to-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{isCreating ? 'Creating...' : 'Create'}
 				</button>
@@ -183,23 +183,20 @@
 		{#if filteredTags.length === 0}
 			<p class="text-text/50">No tags found.</p>
 		{:else}
-			<div class="w-full max-w-5xl overflow-hidden rounded-xl border border-text/15">
+			<div class="w-full max-w-5xl overflow-hidden rounded-sm">
 				<table class="w-full">
 					<thead>
-						<tr class="bg-surface0 text-text">
-							<th class="border-b border-text/15 px-4 py-2 text-left">Name</th>
-							<th class="border-b border-text/15 px-4 py-2 text-left">Count</th>
-							<th class="border-b border-text/15 px-4 py-2 text-left">Category</th>
-							<th class="border-b border-text/15 px-4 py-2 text-left">Implications</th>
+						<tr class="bg-mantle text-text">
+							<th class=" px-4 py-2 text-left">Name</th>
+							<th class=" px-4 py-2 text-left">Count</th>
+							<th class=" px-4 py-2 text-left">Category</th>
+							<th class=" px-4 py-2 text-left">Implications</th>
 						</tr>
 					</thead>
 					<tbody>
 						{#each filteredTags as tag (tag.id)}
-							<tr class="bg-surface0 text-text transition-colors hover:bg-surface1">
-								<td
-									class="border-b border-text/15 px-4 py-2"
-									style="color: {tag.category.color};"
-								>
+							<tr class="text-text transition-colors odd:bg-crust/75 even:bg-mantle">
+								<td class=" px-4 py-2" style="color: {tag.category.color};">
 									<a
 										href={resolve(`/tag/${tag.label}`)}
 										class="hover:cursor-pointer hover:underline"
@@ -207,9 +204,9 @@
 										{tag.label}
 									</a>
 								</td>
-								<td class="border-b border-text/15 px-4 py-2">{tag.count}</td>
-								<td class="border-b border-text/15 px-4 py-2">{tag.category.label}</td>
-								<td class="border-b border-text/15 px-4 py-2">
+								<td class=" px-4 py-2">{tag.count}</td>
+								<td class=" px-4 py-2">{tag.category.label}</td>
+								<td class=" px-4 py-2">
 									{#if implications[tag.id]?.length}
 										{#each implications[tag.id] as impl, i (impl.id)}
 											<a

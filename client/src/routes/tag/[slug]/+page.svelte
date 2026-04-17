@@ -232,7 +232,7 @@
 				<button
 					type="submit"
 					disabled={isSavingTag || !canManageTag}
-					class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+					class="rounded-full bg-linear-to-r from-pink to-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{isSavingTag ? 'Saving...' : 'Save'}
 				</button>
@@ -301,7 +301,7 @@
 				<button
 					type="button"
 					disabled={isSavingImplications || !canManageTag}
-					class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+					class="rounded-full bg-linear-to-r from-pink to-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 					onclick={saveImplications}
 				>
 					{isSavingImplications ? 'Saving...' : 'Save Implications'}

@@ -76,7 +76,7 @@
 		<button
 			type="submit"
 			disabled={loading}
-			class="mt-2 rounded-lg bg-mauve px-4 py-2 font-semibold text-crust transition-opacity hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+			class="mt-2 rounded-full bg-linear-to-r from-pink to-mauve px-4 py-2 font-semibold text-crust transition-opacity hover:cursor-pointer hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
 		>
 			{loading ? 'Creating account...' : 'Sign Up'}
 		</button>

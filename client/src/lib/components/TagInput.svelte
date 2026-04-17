@@ -85,7 +85,7 @@
 	<input
 		bind:this={inputEl}
 		bind:value
-		class="h-full w-full rounded-lg bg-surface0 px-4 py-2 text-lg outline-none"
+		class="h-full w-full rounded-lg bg-mantle px-4 py-2 text-lg text-white outline-none focus:ring-2 focus:ring-mauve focus:outline-none active:outline-none"
 		{placeholder}
 		oninput={handleInput}
 		onfocus={handleFocus}

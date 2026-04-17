@@ -61,7 +61,7 @@
 
 			<button
 				type="submit"
-				class="rounded-lg bg-mauve px-4 py-2 font-semibold text-crust hover:cursor-pointer hover:opacity-90"
+				class="rounded-full bg-linear-to-r from-pink to-mauve px-4 py-2 text-crust hover:cursor-pointer hover:opacity-90"
 			>
 				Search
 			</button>
